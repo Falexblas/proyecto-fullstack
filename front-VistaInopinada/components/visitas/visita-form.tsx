@@ -1,0 +1,1177 @@
+"use client"
+
+import { useState, useRef, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Skeleton } from "@/components/ui/skeleton"
+import { 
+  Building2, 
+  User, 
+  BookOpen, 
+  Calendar, 
+  ClipboardCheck,
+  MonitorPlay,
+  Users,
+  FileText,
+  FlaskConical,
+  Save,
+  Send,
+  Eraser,
+  PenTool
+} from "lucide-react"
+import { cn } from "@/lib/utils"
+import { docentesService, type Docente } from "@/services/docentes.service"
+import { sedesService, type Sede } from "@/services/sedes.service"
+import { asignaturasService, type Asignatura } from "@/services/asignaturas.service"
+import { responsablesService, type Responsable } from "@/services/responsables.service"
+import { visitasService } from "@/services/visitas.service"
+import { toast } from "sonner"
+
+// Componente de evaluacion con opciones SI/NO o CUMPLE/NO CUMPLE
+interface EvaluacionRadioProps {
+  id: string
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options?: { value: string; label: string }[]
+}
+
+function EvaluacionRadio({ 
+  id, 
+  label, 
+  value, 
+  onChange, 
+  options = [{ value: "si", label: "SI" }, { value: "no", label: "NO" }] 
+}: EvaluacionRadioProps) {
+  return (
+    <div className="flex items-center justify-between gap-4 p-3 rounded-lg border bg-card">
+      <Label htmlFor={id} className="font-medium flex-1">
+        {label}
+      </Label>
+      <RadioGroup
+        value={value}
+        onValueChange={onChange}
+        className="flex gap-4"
+      >
+        {options.map((opt) => (
+          <div key={opt.value} className="flex items-center gap-1.5">
+            <RadioGroupItem value={opt.value} id={`${id}-${opt.value}`} />
+            <Label htmlFor={`${id}-${opt.value}`} className="text-sm cursor-pointer">
+              {opt.label}
+            </Label>
+          </div>
+        ))}
+      </RadioGroup>
+    </div>
+  )
+}
+
+// Componente de firma digital
+interface SignaturePadProps {
+  label: string
+  value: string
+  onChange: (value: string) => void
+}
+
+function SignaturePad({ label, value, onChange }: SignaturePadProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [isDrawing, setIsDrawing] = useState(false)
+  const [hasSignature, setHasSignature] = useState(!!value)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+
+    // Set canvas size
+    const rect = canvas.getBoundingClientRect()
+    canvas.width = rect.width * window.devicePixelRatio
+    canvas.height = rect.height * window.devicePixelRatio
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio)
+    
+    // Set drawing style
+    ctx.strokeStyle = "#1e3a5f"
+    ctx.lineWidth = 2
+    ctx.lineCap = "round"
+    ctx.lineJoin = "round"
+
+    // Load existing signature if any
+    if (value) {
+      const img = new Image()
+      img.crossOrigin = "anonymous"
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, rect.width, rect.height)
+      }
+      img.src = value
+    }
+  }, [value])
+
+  const getCoordinates = (e: React.MouseEvent | React.TouchEvent) => {
+    const canvas = canvasRef.current
+    if (!canvas) return { x: 0, y: 0 }
+    
+    const rect = canvas.getBoundingClientRect()
+    
+    if ("touches" in e) {
+      return {
+        x: e.touches[0].clientX - rect.left,
+        y: e.touches[0].clientY - rect.top
+      }
+    }
+    return {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    }
+  }
+
+  const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
+    const canvas = canvasRef.current
+    const ctx = canvas?.getContext("2d")
+    if (!ctx) return
+
+    setIsDrawing(true)
+    const { x, y } = getCoordinates(e)
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+  }
+
+  const draw = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDrawing) return
+    
+    const canvas = canvasRef.current
+    const ctx = canvas?.getContext("2d")
+    if (!ctx) return
+
+    const { x, y } = getCoordinates(e)
+    ctx.lineTo(x, y)
+    ctx.stroke()
+  }
+
+  const stopDrawing = () => {
+    if (!isDrawing) return
+    setIsDrawing(false)
+    setHasSignature(true)
+    
+    const canvas = canvasRef.current
+    if (canvas) {
+      onChange(canvas.toDataURL("image/png"))
+    }
+  }
+
+  const clearSignature = () => {
+    const canvas = canvasRef.current
+    const ctx = canvas?.getContext("2d")
+    if (!ctx || !canvas) return
+
+    const rect = canvas.getBoundingClientRect()
+    ctx.clearRect(0, 0, rect.width, rect.height)
+    setHasSignature(false)
+    onChange("")
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label className="flex items-center gap-2">
+          <PenTool className="h-4 w-4" />
+          {label}
+        </Label>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={clearSignature}
+          disabled={!hasSignature}
+        >
+          <Eraser className="h-4 w-4 mr-1" />
+          Limpiar
+        </Button>
+      </div>
+      <div className="border-2 border-dashed rounded-lg p-1 bg-card">
+        <canvas
+          ref={canvasRef}
+          className="w-full h-32 cursor-crosshair touch-none"
+          onMouseDown={startDrawing}
+          onMouseMove={draw}
+          onMouseUp={stopDrawing}
+          onMouseLeave={stopDrawing}
+          onTouchStart={startDrawing}
+          onTouchMove={draw}
+          onTouchEnd={stopDrawing}
+        />
+      </div>
+      <p className="text-xs text-muted-foreground text-center">
+        Firme con el mouse o dedo (en dispositivos tactiles)
+      </p>
+    </div>
+  )
+}
+
+export function VisitaForm() {
+  const [step, setStep] = useState(1)
+  const [formData, setFormData] = useState({
+    // Datos generales
+    sede: "",
+    docente: "",
+    asignatura: "",
+    campoFormativo: "",
+    ciclo: "",
+    turno: "",
+    fecha: "",
+    horaInicio: "",
+    horaTermino: "",
+    semana: "",
+    tipoClase: "",
+    horaPractica: "",
+    horaTeoria: "",
+    lugar: "",
+    
+    // 1. Control Docente
+    docentePresente: "",
+    horarioProgramado: "",
+    interaccion: "",
+    actividad: "",
+    observacionesDocente: "",
+    
+    // 2. Material Aula Virtual
+    materialCargado: "",
+    observacionesMaterial: "",
+    
+    // 3. Control Asistencia Estudiantes
+    asistenciaAmbienteCumple: "",
+    asistenciaAmbienteObs: "",
+    asistenciaIntranetCumple: "",
+    asistenciaIntranetObs: "",
+    observacionesAsistencia: "",
+    
+    // 4. Control Avance Silabico
+    temaCoincideVisita: "",
+    temaCoincideAnterior: "",
+    ingresoAvanceAulaVirtual: "",
+    observacionesAvance: "",
+    
+    // 5. Guia de Practica
+    temaProgramadoGuia: "",
+    logroEvidenciado: "",
+    rubricaEvaluacion: "",
+    observacionesGuia: "",
+    
+    // Responsable y Requerimientos
+    responsable: "",
+    requerimientos: "",
+    
+    // Firmas digitales
+    firmaDocente: "",
+    firmaResponsable: ""
+  })
+
+  const updateField = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const router = useRouter()
+  const [sedes, setSedes] = useState<Sede[]>([])
+  const [docentes, setDocentes] = useState<Docente[]>([])
+  const [asignaturas, setAsignaturas] = useState<Asignatura[]>([])
+  const [responsables, setResponsables] = useState<Responsable[]>([])
+  const [isLoadingData, setIsLoadingData] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setIsLoadingData(true)
+        const [s, d, a, r] = await Promise.all([
+          sedesService.getAll(),
+          docentesService.getActivos(),
+          asignaturasService.getAll(),
+          responsablesService.getActivos(),
+        ])
+        setSedes(s)
+        setDocentes(d)
+        setAsignaturas(a)
+        setResponsables(r)
+      } catch {
+        toast.error("Error al cargar datos del formulario")
+      } finally {
+        setIsLoadingData(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  async function handleSubmit() {
+    try {
+      setIsSubmitting(true)
+      const idSede = parseInt(formData.sede)
+      const idDocente = parseInt(formData.docente)
+      const idAsignatura = parseInt(formData.asignatura)
+      const idResponsable = parseInt(formData.responsable)
+
+      if (!formData.fecha || !formData.horaInicio || !formData.horaTermino || isNaN(idSede) || isNaN(idDocente) || isNaN(idAsignatura) || isNaN(idResponsable)) {
+        toast.error("Complete todos los campos obligatorios: fecha, horas, sede, docente, asignatura y responsable")
+        setIsSubmitting(false)
+        return
+      }
+
+      const payload = {
+        fechaVisita: formData.fecha,
+        horaInicio: formData.horaInicio,
+        horaTermino: formData.horaTermino,
+        semanaNumero: formData.semana ? parseInt(formData.semana) : null,
+        lugarVisita: formData.lugar || null,
+        tipoClase: formData.tipoClase || "TEORICA",
+        idSede,
+        idDocente,
+        idAsignatura,
+        idResponsable,
+      }
+      await visitasService.create(payload)
+      toast.success("Visita registrada exitosamente")
+      router.push("/visitas")
+    } catch {
+      toast.error("Error al registrar la visita")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const steps = [
+    { number: 1, title: "Datos Generales", icon: Building2 },
+    { number: 2, title: "Evaluaciones", icon: ClipboardCheck },
+    { number: 3, title: "Observaciones", icon: FileText },
+    { number: 4, title: "Firmas y Envio", icon: Send },
+  ]
+
+  const cumpleOptions = [
+    { value: "cumple", label: "Cumple" },
+    { value: "no_cumple", label: "No Cumple" }
+  ]
+
+  const siNoOptions = [
+    { value: "si", label: "SI" },
+    { value: "no", label: "NO" }
+  ]
+
+  const cumpleNoAplicaOptions = [
+    { value: "cumple", label: "Cumple" },
+    { value: "no_cumple", label: "No Cumple" },
+    { value: "no_aplica", label: "No Aplica" }
+  ]
+
+  return (
+    <div className="space-y-6">
+      {/* Progress Steps */}
+      <div className="flex items-center justify-between overflow-x-auto pb-2">
+        {steps.map((s, i) => (
+          <div key={s.number} className="flex items-center flex-shrink-0">
+            <button
+              onClick={() => setStep(s.number)}
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
+                step === s.number 
+                  ? "bg-primary text-primary-foreground" 
+                  : step > s.number
+                    ? "bg-accent/20 text-accent"
+                    : "bg-muted text-muted-foreground"
+              )}
+            >
+              <s.icon className="h-4 w-4" />
+              <span className="font-medium text-sm hidden sm:inline">{s.title}</span>
+              <span className="font-medium text-sm sm:hidden">{s.number}</span>
+            </button>
+            {i < steps.length - 1 && (
+              <div className={cn(
+                "w-8 lg:w-16 h-0.5 mx-2",
+                step > s.number ? "bg-accent" : "bg-border"
+              )} />
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Step 1: Datos Generales */}
+      {step === 1 && (
+        <Card>
+          <CardHeader className="bg-primary/5 border-b">
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              Datos Generales de la Visita
+            </CardTitle>
+            <CardDescription>
+              Informacion basica de la visita inopinada - Clases Presenciales
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6 pt-6">
+            {/* Fecha y Hora */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Fecha de Visita
+                </Label>
+                <Input
+                  type="date"
+                  value={formData.fecha}
+                  onChange={(e) => updateField("fecha", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Hora de Inicio</Label>
+                <Input
+                  type="time"
+                  value={formData.horaInicio}
+                  onChange={(e) => updateField("horaInicio", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Hora de Termino</Label>
+                <Input
+                  type="time"
+                  value={formData.horaTermino}
+                  onChange={(e) => updateField("horaTermino", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Semana N</Label>
+                <Select value={formData.semana} onValueChange={(v) => updateField("semana", v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Semana" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 16 }, (_, i) => (
+                      <SelectItem key={i + 1} value={String(i + 1)}>{i + 1}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Sede, Ciclo, Turno */}
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label>Sede o Filial</Label>
+                <Select value={formData.sede} onValueChange={(v) => updateField("sede", v)} disabled={isLoadingData}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={isLoadingData ? "Cargando..." : "Seleccionar sede"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sedes.map((s) => (
+                      <SelectItem key={s.id} value={String(s.id)}>{s.nombre}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Ciclo</Label>
+                <Select value={formData.ciclo} onValueChange={(v) => updateField("ciclo", v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Ciclo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"].map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Turno</Label>
+                <Select value={formData.turno} onValueChange={(v) => updateField("turno", v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Turno" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="manana">Manana</SelectItem>
+                    <SelectItem value="tarde">Tarde</SelectItem>
+                    <SelectItem value="noche">Noche</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Asignatura y Campo Formativo */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <BookOpen className="h-4 w-4" />
+                  Asignatura
+                </Label>
+                <Select value={formData.asignatura} onValueChange={(v) => updateField("asignatura", v)} disabled={isLoadingData}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={isLoadingData ? "Cargando..." : "Seleccionar asignatura"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {asignaturas.map((a) => (
+                      <SelectItem key={a.id} value={String(a.id)}>{a.nombre}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Campo Formativo</Label>
+                <Select value={formData.campoFormativo} onValueChange={(v) => updateField("campoFormativo", v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar campo formativo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="estudios-generales">Estudios Generales</SelectItem>
+                    <SelectItem value="estudios-especificos">Estudios Especificos</SelectItem>
+                    <SelectItem value="estudios-especialidad">Estudios de Especialidad</SelectItem>
+                    <SelectItem value="practicas-preprofesionales">Practicas Pre-Profesionales</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Tipo de Clase, Hora Practica/Teoria, Lugar */}
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label>Tipo de Clase</Label>
+                <Select value={formData.tipoClase} onValueChange={(v) => updateField("tipoClase", v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="TEORICA">Teorica</SelectItem>
+                    <SelectItem value="PRACTICA">Practica</SelectItem>
+                    <SelectItem value="MIXTA">Mixta (Teoria + Practica)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Hora Practica / Hora Teoria</Label>
+                <Input
+                  placeholder="Ej: 2HP / 3HT"
+                  value={formData.horaPractica}
+                  onChange={(e) => updateField("horaPractica", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Lugar de la Visita</Label>
+                <Input
+                  placeholder="Ej: Aula 301, Laboratorio de Computo"
+                  value={formData.lugar}
+                  onChange={(e) => updateField("lugar", e.target.value)}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Step 2: Evaluaciones */}
+      {step === 2 && (
+        <div className="space-y-6">
+          {/* 1. Control Docente */}
+          <Card>
+            <CardHeader className="bg-primary/5 border-b">
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                1. Control Docente (Asistencia, Horario, Comportamiento)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {/* Docente */}
+              <div className="mb-4 p-3 bg-muted/50 rounded-lg">
+                <Label className="text-sm text-muted-foreground">Docente:</Label>
+                <Select value={formData.docente} onValueChange={(v) => updateField("docente", v)} disabled={isLoadingData}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder={isLoadingData ? "Cargando..." : "Seleccionar docente"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {docentes.map((d) => (
+                      <SelectItem key={d.id} value={String(d.id)}>{d.nombres} {d.apellidos}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Tabla de evaluacion docente */}
+              <div className="border rounded-lg overflow-hidden">
+                <div className="grid grid-cols-4 gap-px bg-muted text-sm font-medium">
+                  <div className="bg-primary/10 p-3 text-center">PRESENTE</div>
+                  <div className="bg-primary/10 p-3 text-center">HORARIO PROGRAMADO</div>
+                  <div className="bg-primary/10 p-3 text-center">INTERACCION</div>
+                  <div className="bg-primary/10 p-3 text-center">ACTIVIDAD</div>
+                </div>
+                <div className="grid grid-cols-4 gap-px bg-muted">
+                  {/* Presente */}
+                  <div className="bg-card p-3">
+                    <RadioGroup
+                      value={formData.docentePresente}
+                      onValueChange={(v) => updateField("docentePresente", v)}
+                      className="flex flex-col gap-2"
+                    >
+                      <div className="flex items-center gap-2">
+                        <RadioGroupItem value="si" id="presente-si" />
+                        <Label htmlFor="presente-si" className="text-sm cursor-pointer">SI</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <RadioGroupItem value="no" id="presente-no" />
+                        <Label htmlFor="presente-no" className="text-sm cursor-pointer">NO</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                  {/* Horario Programado */}
+                  <div className="bg-card p-3">
+                    <RadioGroup
+                      value={formData.horarioProgramado}
+                      onValueChange={(v) => updateField("horarioProgramado", v)}
+                      className="flex flex-col gap-2"
+                    >
+                      <div className="flex items-center gap-2">
+                        <RadioGroupItem value="cumple" id="horario-cumple" />
+                        <Label htmlFor="horario-cumple" className="text-sm cursor-pointer">Cumple</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <RadioGroupItem value="no_cumple" id="horario-no-cumple" />
+                        <Label htmlFor="horario-no-cumple" className="text-sm cursor-pointer">No Cumple</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                  {/* Interaccion */}
+                  <div className="bg-card p-3">
+                    <RadioGroup
+                      value={formData.interaccion}
+                      onValueChange={(v) => updateField("interaccion", v)}
+                      className="flex flex-col gap-2"
+                    >
+                      <div className="flex items-center gap-2">
+                        <RadioGroupItem value="si" id="interaccion-si" />
+                        <Label htmlFor="interaccion-si" className="text-sm cursor-pointer">SI</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <RadioGroupItem value="no" id="interaccion-no" />
+                        <Label htmlFor="interaccion-no" className="text-sm cursor-pointer">NO</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                  {/* Actividad */}
+                  <div className="bg-card p-3">
+                    <Input
+                      placeholder="Describir actividad"
+                      value={formData.actividad}
+                      onChange={(e) => updateField("actividad", e.target.value)}
+                      className="text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-2">
+                <Label className="text-sm">Observaciones:</Label>
+                <Textarea
+                  placeholder="Observaciones del control docente..."
+                  value={formData.observacionesDocente}
+                  onChange={(e) => updateField("observacionesDocente", e.target.value)}
+                  className="min-h-[60px]"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 2. Material Aula Virtual */}
+          <Card>
+            <CardHeader className="bg-primary/5 border-b">
+              <CardTitle className="flex items-center gap-2">
+                <MonitorPlay className="h-5 w-5" />
+                2. Registro de Material a Utilizar Cargado en Aula Virtual Antes del Inicio de Clases
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4 space-y-4">
+              <EvaluacionRadio
+                id="materialCargado"
+                label="CUMPLE"
+                value={formData.materialCargado}
+                onChange={(v) => updateField("materialCargado", v)}
+                options={siNoOptions}
+              />
+              <div className="space-y-2">
+                <Label className="text-sm">Observaciones:</Label>
+                <Textarea
+                  placeholder="Observaciones del material..."
+                  value={formData.observacionesMaterial}
+                  onChange={(e) => updateField("observacionesMaterial", e.target.value)}
+                  className="min-h-[60px]"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 3. Control de Registro de Asistencia */}
+          <Card>
+            <CardHeader className="bg-primary/5 border-b">
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                3. Control de Registro de Asistencia de Estudiantes
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {/* Tabla de control de asistencia */}
+              <div className="border rounded-lg overflow-hidden">
+                <div className="grid grid-cols-3 gap-px bg-muted text-sm font-medium">
+                  <div className="bg-primary/10 p-3 text-center">CONTROL</div>
+                  <div className="bg-primary/10 p-3 text-center">CONTROL EN AMBIENTE</div>
+                  <div className="bg-primary/10 p-3 text-center">CONTROL EN INTRANET</div>
+                </div>
+                {/* Fila Asistencia */}
+                <div className="grid grid-cols-3 gap-px bg-muted">
+                  <div className="bg-card p-3 flex items-center font-medium text-sm">
+                    ASISTENCIA
+                  </div>
+                  {/* Control en Ambiente */}
+                  <div className="bg-card p-3">
+                    <RadioGroup
+                      value={formData.asistenciaAmbienteCumple}
+                      onValueChange={(v) => updateField("asistenciaAmbienteCumple", v)}
+                      className="flex gap-4 mb-2"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <RadioGroupItem value="cumple" id="amb-cumple" />
+                        <Label htmlFor="amb-cumple" className="text-xs cursor-pointer">Cumple</Label>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <RadioGroupItem value="no_cumple" id="amb-no-cumple" />
+                        <Label htmlFor="amb-no-cumple" className="text-xs cursor-pointer">No Cumple</Label>
+                      </div>
+                    </RadioGroup>
+                    <Input
+                      placeholder="Observaciones"
+                      value={formData.asistenciaAmbienteObs}
+                      onChange={(e) => updateField("asistenciaAmbienteObs", e.target.value)}
+                      className="text-xs h-8"
+                    />
+                  </div>
+                  {/* Control en Intranet */}
+                  <div className="bg-card p-3">
+                    <RadioGroup
+                      value={formData.asistenciaIntranetCumple}
+                      onValueChange={(v) => updateField("asistenciaIntranetCumple", v)}
+                      className="flex gap-4 mb-2"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <RadioGroupItem value="cumple" id="intra-cumple" />
+                        <Label htmlFor="intra-cumple" className="text-xs cursor-pointer">Cumple</Label>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <RadioGroupItem value="no_cumple" id="intra-no-cumple" />
+                        <Label htmlFor="intra-no-cumple" className="text-xs cursor-pointer">No Cumple</Label>
+                      </div>
+                    </RadioGroup>
+                    <Input
+                      placeholder="Observaciones"
+                      value={formData.asistenciaIntranetObs}
+                      onChange={(e) => updateField("asistenciaIntranetObs", e.target.value)}
+                      className="text-xs h-8"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-2">
+                <Label className="text-sm">Observaciones Generales:</Label>
+                <Textarea
+                  placeholder="Observaciones del control de asistencia..."
+                  value={formData.observacionesAsistencia}
+                  onChange={(e) => updateField("observacionesAsistencia", e.target.value)}
+                  className="min-h-[60px]"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 4. Control del Avance Silabico */}
+          <Card>
+            <CardHeader className="bg-primary/5 border-b">
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                4. Control del Avance Silabico
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <div className="border rounded-lg overflow-hidden">
+                <div className="grid grid-cols-3 gap-px bg-muted text-sm font-medium">
+                  <div className="bg-primary/10 p-3 col-span-1"></div>
+                  <div className="bg-primary/10 p-3 text-center">CUMPLE</div>
+                  <div className="bg-primary/10 p-3 text-center">NO CUMPLE</div>
+                </div>
+                {/* Item 1 */}
+                <div className="grid grid-cols-3 gap-px bg-muted">
+                  <div className="bg-card p-3 text-sm">
+                    El tema del silabo coincide con la clase desarrollada en la fecha de la visita
+                  </div>
+                  <div className="bg-card p-3 flex justify-center">
+                    <RadioGroup
+                      value={formData.temaCoincideVisita}
+                      onValueChange={(v) => updateField("temaCoincideVisita", v)}
+                      className="flex gap-4"
+                    >
+                      <RadioGroupItem value="cumple" id="tema-visita-cumple" />
+                    </RadioGroup>
+                  </div>
+                  <div className="bg-card p-3 flex justify-center">
+                    <RadioGroup
+                      value={formData.temaCoincideVisita}
+                      onValueChange={(v) => updateField("temaCoincideVisita", v)}
+                      className="flex gap-4"
+                    >
+                      <RadioGroupItem value="no_cumple" id="tema-visita-no" />
+                    </RadioGroup>
+                  </div>
+                </div>
+                {/* Item 2 */}
+                <div className="grid grid-cols-3 gap-px bg-muted">
+                  <div className="bg-card p-3 text-sm">
+                    El tema desarrollado en la fecha anterior a la visita coincide con el silabo
+                  </div>
+                  <div className="bg-card p-3 flex justify-center">
+                    <RadioGroup
+                      value={formData.temaCoincideAnterior}
+                      onValueChange={(v) => updateField("temaCoincideAnterior", v)}
+                      className="flex gap-4"
+                    >
+                      <RadioGroupItem value="cumple" id="tema-ant-cumple" />
+                    </RadioGroup>
+                  </div>
+                  <div className="bg-card p-3 flex justify-center">
+                    <RadioGroup
+                      value={formData.temaCoincideAnterior}
+                      onValueChange={(v) => updateField("temaCoincideAnterior", v)}
+                      className="flex gap-4"
+                    >
+                      <RadioGroupItem value="no_cumple" id="tema-ant-no" />
+                    </RadioGroup>
+                  </div>
+                </div>
+                {/* Item 3 */}
+                <div className="grid grid-cols-3 gap-px bg-muted">
+                  <div className="bg-card p-3 text-sm">
+                    Ingreso del avance silabico en el aula virtual
+                  </div>
+                  <div className="bg-card p-3 flex justify-center">
+                    <RadioGroup
+                      value={formData.ingresoAvanceAulaVirtual}
+                      onValueChange={(v) => updateField("ingresoAvanceAulaVirtual", v)}
+                      className="flex gap-4"
+                    >
+                      <RadioGroupItem value="cumple" id="avance-cumple" />
+                    </RadioGroup>
+                  </div>
+                  <div className="bg-card p-3 flex justify-center">
+                    <RadioGroup
+                      value={formData.ingresoAvanceAulaVirtual}
+                      onValueChange={(v) => updateField("ingresoAvanceAulaVirtual", v)}
+                      className="flex gap-4"
+                    >
+                      <RadioGroupItem value="no_cumple" id="avance-no" />
+                    </RadioGroup>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-2">
+                <Label className="text-sm">Observaciones:</Label>
+                <Textarea
+                  placeholder="Observaciones del avance silabico..."
+                  value={formData.observacionesAvance}
+                  onChange={(e) => updateField("observacionesAvance", e.target.value)}
+                  className="min-h-[60px]"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 5. Guia de Practica */}
+          <Card>
+            <CardHeader className="bg-primary/5 border-b">
+              <CardTitle className="flex items-center gap-2">
+                <FlaskConical className="h-5 w-5" />
+                5. Cumple con el Desarrollo de la Guia de Practica
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <div className="border rounded-lg overflow-hidden">
+                <div className="grid grid-cols-4 gap-px bg-muted text-sm font-medium">
+                  <div className="bg-primary/10 p-3"></div>
+                  <div className="bg-primary/10 p-3 text-center">CUMPLE</div>
+                  <div className="bg-primary/10 p-3 text-center">NO CUMPLE</div>
+                  <div className="bg-primary/10 p-3 text-center">NO APLICA</div>
+                </div>
+                {/* Item 1 */}
+                <div className="grid grid-cols-4 gap-px bg-muted">
+                  <div className="bg-card p-3 text-sm">
+                    Cumple con el tema programado en la guia de practica para el desarrollo de la clase practica
+                  </div>
+                  <div className="bg-card p-3 flex justify-center">
+                    <RadioGroup
+                      value={formData.temaProgramadoGuia}
+                      onValueChange={(v) => updateField("temaProgramadoGuia", v)}
+                    >
+                      <RadioGroupItem value="cumple" id="guia1-cumple" />
+                    </RadioGroup>
+                  </div>
+                  <div className="bg-card p-3 flex justify-center">
+                    <RadioGroup
+                      value={formData.temaProgramadoGuia}
+                      onValueChange={(v) => updateField("temaProgramadoGuia", v)}
+                    >
+                      <RadioGroupItem value="no_cumple" id="guia1-no" />
+                    </RadioGroup>
+                  </div>
+                  <div className="bg-card p-3 flex justify-center">
+                    <RadioGroup
+                      value={formData.temaProgramadoGuia}
+                      onValueChange={(v) => updateField("temaProgramadoGuia", v)}
+                    >
+                      <RadioGroupItem value="no_aplica" id="guia1-na" />
+                    </RadioGroup>
+                  </div>
+                </div>
+                {/* Item 2 */}
+                <div className="grid grid-cols-4 gap-px bg-muted">
+                  <div className="bg-card p-3 text-sm">
+                    Se evidencia el logro a medir en la practica desarrollada
+                  </div>
+                  <div className="bg-card p-3 flex justify-center">
+                    <RadioGroup
+                      value={formData.logroEvidenciado}
+                      onValueChange={(v) => updateField("logroEvidenciado", v)}
+                    >
+                      <RadioGroupItem value="cumple" id="guia2-cumple" />
+                    </RadioGroup>
+                  </div>
+                  <div className="bg-card p-3 flex justify-center">
+                    <RadioGroup
+                      value={formData.logroEvidenciado}
+                      onValueChange={(v) => updateField("logroEvidenciado", v)}
+                    >
+                      <RadioGroupItem value="no_cumple" id="guia2-no" />
+                    </RadioGroup>
+                  </div>
+                  <div className="bg-card p-3 flex justify-center">
+                    <RadioGroup
+                      value={formData.logroEvidenciado}
+                      onValueChange={(v) => updateField("logroEvidenciado", v)}
+                    >
+                      <RadioGroupItem value="no_aplica" id="guia2-na" />
+                    </RadioGroup>
+                  </div>
+                </div>
+                {/* Item 3 */}
+                <div className="grid grid-cols-4 gap-px bg-muted">
+                  <div className="bg-card p-3 text-sm">
+                    Cuenta con una rubrica de evaluacion
+                  </div>
+                  <div className="bg-card p-3 flex justify-center">
+                    <RadioGroup
+                      value={formData.rubricaEvaluacion}
+                      onValueChange={(v) => updateField("rubricaEvaluacion", v)}
+                    >
+                      <RadioGroupItem value="cumple" id="guia3-cumple" />
+                    </RadioGroup>
+                  </div>
+                  <div className="bg-card p-3 flex justify-center">
+                    <RadioGroup
+                      value={formData.rubricaEvaluacion}
+                      onValueChange={(v) => updateField("rubricaEvaluacion", v)}
+                    >
+                      <RadioGroupItem value="no_cumple" id="guia3-no" />
+                    </RadioGroup>
+                  </div>
+                  <div className="bg-card p-3 flex justify-center">
+                    <RadioGroup
+                      value={formData.rubricaEvaluacion}
+                      onValueChange={(v) => updateField("rubricaEvaluacion", v)}
+                    >
+                      <RadioGroupItem value="no_aplica" id="guia3-na" />
+                    </RadioGroup>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-2">
+                <Label className="text-sm">Observaciones:</Label>
+                <Textarea
+                  placeholder="Observaciones de la guia de practica..."
+                  value={formData.observacionesGuia}
+                  onChange={(e) => updateField("observacionesGuia", e.target.value)}
+                  className="min-h-[60px]"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Step 3: Responsable y Requerimientos */}
+      {step === 3 && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader className="bg-primary/5 border-b">
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Responsable de Realizar la Actividad
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <Select value={formData.responsable} onValueChange={(v) => updateField("responsable", v)} disabled={isLoadingData}>
+                <SelectTrigger>
+                  <SelectValue placeholder={isLoadingData ? "Cargando..." : "Seleccionar responsable"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {responsables.map((r) => (
+                    <SelectItem key={r.id} value={String(r.id)}>{r.nombres} {r.apellidos}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="bg-primary/5 border-b">
+              <CardTitle className="flex items-center gap-2">
+                <ClipboardCheck className="h-5 w-5" />
+                Requerimientos Solicitados en la Visita Inopinada
+              </CardTitle>
+              <CardDescription>
+                Registre los requerimientos de mejora o acciones correctivas identificadas
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <Textarea
+                placeholder="Describa los requerimientos solicitados durante la visita..."
+                value={formData.requerimientos}
+                onChange={(e) => updateField("requerimientos", e.target.value)}
+                className="min-h-[150px]"
+              />
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Step 4: Firmas y Envio */}
+      {step === 4 && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader className="bg-primary/5 border-b">
+              <CardTitle className="flex items-center gap-2">
+                <PenTool className="h-5 w-5" />
+                Firmas Digitales
+              </CardTitle>
+              <CardDescription>
+                Ambas partes deben firmar digitalmente para validar el registro
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-8">
+              {/* Firma Docente */}
+              <SignaturePad
+                label="Firma del Docente"
+                value={formData.firmaDocente}
+                onChange={(v) => updateField("firmaDocente", v)}
+              />
+
+              {/* Firma Responsable */}
+              <SignaturePad
+                label="Firma del Responsable de la Visita"
+                value={formData.firmaResponsable}
+                onChange={(v) => updateField("firmaResponsable", v)}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Resumen */}
+          <Card>
+            <CardHeader className="bg-primary/5 border-b">
+              <CardTitle>Resumen de la Visita</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <div className="grid gap-3 text-sm">
+                <div className="flex justify-between py-2 border-b">
+                  <span className="text-muted-foreground">Sede:</span>
+                  <span className="font-medium">{formData.sede || "-"}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b">
+                  <span className="text-muted-foreground">Docente:</span>
+                  <span className="font-medium">{formData.docente || "-"}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b">
+                  <span className="text-muted-foreground">Asignatura:</span>
+                  <span className="font-medium">{formData.asignatura || "-"}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b">
+                  <span className="text-muted-foreground">Campo Formativo:</span>
+                  <span className="font-medium">{formData.campoFormativo || "-"}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b">
+                  <span className="text-muted-foreground">Fecha:</span>
+                  <span className="font-medium">{formData.fecha || "-"}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b">
+                  <span className="text-muted-foreground">Horario:</span>
+                  <span className="font-medium">{formData.horaInicio || "-"} - {formData.horaTermino || "-"}</span>
+                </div>
+                <div className="flex justify-between py-2">
+                  <span className="text-muted-foreground">Responsable:</span>
+                  <span className="font-medium">{formData.responsable || "-"}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Acciones finales */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button variant="outline" className="flex-1" disabled={isSubmitting}>
+              <Save className="h-4 w-4 mr-2" />
+              Guardar Borrador
+            </Button>
+            <Button 
+              className="flex-1" 
+              disabled={!formData.firmaDocente || !formData.firmaResponsable || isSubmitting}
+              onClick={handleSubmit}
+            >
+              <Send className="h-4 w-4 mr-2" />
+              {isSubmitting ? "Enviando..." : "Enviar Registro"}
+            </Button>
+          </div>
+          {(!formData.firmaDocente || !formData.firmaResponsable) && (
+            <p className="text-sm text-muted-foreground text-center">
+              Se requieren ambas firmas para enviar el registro
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Navigation Buttons */}
+      <div className="flex justify-between pt-4">
+        <Button
+          variant="outline"
+          onClick={() => setStep(Math.max(1, step - 1))}
+          disabled={step === 1}
+        >
+          Anterior
+        </Button>
+        <Button
+          onClick={() => setStep(Math.min(4, step + 1))}
+          disabled={step === 4}
+        >
+          Siguiente
+        </Button>
+      </div>
+    </div>
+  )
+}

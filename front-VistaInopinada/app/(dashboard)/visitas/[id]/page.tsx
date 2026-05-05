@@ -1,0 +1,286 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { useParams, useRouter } from "next/navigation"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import { AlertTriangle, ArrowLeft, Calendar, CheckCircle2, Clock, FileText, MapPin, PenTool, User } from "lucide-react"
+import { visitasService, type Visita } from "@/services/visitas.service"
+import { useAuth } from "@/lib/auth-context"
+import { toast } from "sonner"
+
+const estadoConfig: Record<string, { label: string; className: string }> = {
+  BORRADOR: { label: "Borrador", className: "bg-muted text-muted-foreground" },
+  FIRMADA_DOCENTE: { label: "Firmada por Docente", className: "bg-primary text-primary-foreground" },
+  COMPLETADA: { label: "Completada", className: "bg-success text-success-foreground" },
+  AUDITADA: { label: "Auditada", className: "bg-info text-info-foreground" },
+}
+
+export default function VisitaDetallePage() {
+  const params = useParams()
+  const router = useRouter()
+  const { user } = useAuth()
+  const [visita, setVisita] = useState<Visita | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isSigning, setIsSigning] = useState(false)
+
+  const id = Number(params.id)
+
+  useEffect(() => {
+    if (!id || isNaN(id)) {
+      setError("ID de visita invalido")
+      setIsLoading(false)
+      return
+    }
+
+    async function fetchVisita() {
+      try {
+        setIsLoading(true)
+        setError(null)
+        const data = await visitasService.getById(id)
+        setVisita(data)
+      } catch {
+        setError("No se pudo cargar la visita.")
+        toast.error("Error al cargar la visita")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchVisita()
+  }, [id])
+
+  async function handleFirmaDocente() {
+    try {
+      setIsSigning(true)
+      // Firma simple: hash generado localmente
+      const firmaHash = `firma-docente-${visita!.id}-${Date.now()}`
+      await visitasService.firmarDocente(visita!.id, firmaHash)
+      toast.success("Visita firmada correctamente como docente")
+      const updated = await visitasService.getById(visita!.id)
+      setVisita(updated)
+    } catch {
+      toast.error("Error al firmar la visita")
+    } finally {
+      setIsSigning(false)
+    }
+  }
+
+  async function handleFirmaAuditor() {
+    try {
+      setIsSigning(true)
+      const firmaHash = `firma-auditor-${visita!.id}-${Date.now()}`
+      await visitasService.firmarAuditor(visita!.id, firmaHash)
+      toast.success("Visita firmada correctamente como auditor")
+      const updated = await visitasService.getById(visita!.id)
+      setVisita(updated)
+    } catch {
+      toast.error("Error al firmar la visita")
+    } finally {
+      setIsSigning(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 max-w-4xl mx-auto">
+        <Skeleton className="h-8 w-48" />
+        <div className="grid gap-4 md:grid-cols-2">
+          <Skeleton className="h-40" />
+          <Skeleton className="h-40" />
+        </div>
+        <Skeleton className="h-60" />
+      </div>
+    )
+  }
+
+  if (error || !visita) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center max-w-md mx-auto">
+        <AlertTriangle className="h-10 w-10 text-destructive mb-4" />
+        <h3 className="text-lg font-medium">Error al cargar la visita</h3>
+        <p className="text-sm text-muted-foreground mt-1">{error || "No se encontro la visita solicitada."}</p>
+        <Button variant="outline" className="mt-4" asChild>
+          <Link href="/visitas">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Volver a visitas
+          </Link>
+        </Button>
+      </div>
+    )
+  }
+
+  const estado = estadoConfig[visita.estadoVisita] || estadoConfig.BORRADOR
+  const isDocente = user?.rol === "DOCENTE"
+  const isAuditor = user?.rol === "AUDITOR"
+  const isAdmin = user?.rol === "ADMIN"
+
+  const canFirmarDocente = isDocente && visita.estadoVisita === "BORRADOR"
+  const canFirmarAuditor = isAuditor && visita.estadoVisita === "FIRMADA_DOCENTE"
+  const showEvaluaciones = isAuditor || isAdmin
+
+  return (
+    <div className="space-y-6 max-w-4xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" asChild>
+          <Link href="/visitas">
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+        </Button>
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-bold text-foreground">
+            Detalle de Visita
+          </h1>
+          <p className="text-muted-foreground">
+            VIS-{String(visita.id).padStart(3, "0")}
+          </p>
+        </div>
+        <Badge className={estado.className}>{estado.label}</Badge>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Informacion general */}
+        <Card>
+          <CardHeader className="bg-primary/5 border-b">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileText className="h-5 w-5" />
+              Informacion General
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4 space-y-3 text-sm">
+            <div className="flex justify-between py-2 border-b">
+              <span className="text-muted-foreground">Docente:</span>
+              <span className="font-medium">{visita.nombreDocente} {visita.apellidosDocente}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b">
+              <span className="text-muted-foreground">Asignatura:</span>
+              <span className="font-medium">{visita.nombreAsignatura}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b">
+              <span className="text-muted-foreground">Sede:</span>
+              <span className="font-medium">{visita.nombreSede}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b">
+              <span className="text-muted-foreground">Auditor:</span>
+              <span className="font-medium">{visita.nombreAuditor}</span>
+            </div>
+            <div className="flex justify-between py-2">
+              <span className="text-muted-foreground">Responsable:</span>
+              <span className="font-medium">{visita.nombreResponsable}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Fecha y horario */}
+        <Card>
+          <CardHeader className="bg-primary/5 border-b">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Calendar className="h-5 w-5" />
+              Fecha y Horario
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4 space-y-3 text-sm">
+            <div className="flex justify-between py-2 border-b">
+              <span className="text-muted-foreground">Fecha:</span>
+              <span className="font-medium">{visita.fechaVisita}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b">
+              <span className="text-muted-foreground">Hora inicio:</span>
+              <span className="font-medium">{visita.horaInicio}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b">
+              <span className="text-muted-foreground">Hora termino:</span>
+              <span className="font-medium">{visita.horaTermino}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b">
+              <span className="text-muted-foreground">Tipo de clase:</span>
+              <span className="font-medium">{visita.tipoClase}</span>
+            </div>
+            <div className="flex justify-between py-2">
+              <span className="text-muted-foreground">Lugar:</span>
+              <span className="font-medium">{visita.lugarVisita || "-"}</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Firmas */}
+      <Card>
+        <CardHeader className="bg-primary/5 border-b">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <PenTool className="h-5 w-5" />
+            Firmas
+          </CardTitle>
+          <CardDescription>
+            Estado de las firmas digitales de la visita
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="p-4 rounded-lg border">
+              <div className="flex items-center gap-2 mb-2">
+                <User className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">Firma del Docente</span>
+              </div>
+              {visita.firmaDocenteHash ? (
+                <div className="flex items-center gap-2 text-sm text-success">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Firmado el {visita.fechaFirmaDocente || "N/A"}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Clock className="h-4 w-4" />
+                  Pendiente de firma
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 rounded-lg border">
+              <div className="flex items-center gap-2 mb-2">
+                <PenTool className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">Firma del Auditor</span>
+              </div>
+              {visita.firmaResponsableHash ? (
+                <div className="flex items-center gap-2 text-sm text-success">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Firmado el {visita.fechaFirmaResponsable || "N/A"}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Clock className="h-4 w-4" />
+                  Pendiente de firma
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Botones de firma */}
+          <div className="flex flex-wrap gap-3 mt-4">
+            {canFirmarDocente && (
+              <Button onClick={handleFirmaDocente} disabled={isSigning}>
+                <PenTool className="h-4 w-4 mr-2" />
+                {isSigning ? "Firmando..." : "Firmar como Docente"}
+              </Button>
+            )}
+            {canFirmarAuditor && (
+              <Button onClick={handleFirmaAuditor} disabled={isSigning}>
+                <PenTool className="h-4 w-4 mr-2" />
+                {isSigning ? "Firmando..." : "Firmar como Auditor"}
+              </Button>
+            )}
+            {!canFirmarDocente && !canFirmarAuditor && visita.estadoVisita === "COMPLETADA" && (
+              <p className="text-sm text-muted-foreground">
+                Visita completada. No se requieren mas acciones.
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
