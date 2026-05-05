@@ -6,6 +6,8 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.NotFound;
+import org.hibernate.annotations.NotFoundAction;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -46,22 +48,27 @@ public class VisitaInopinadaEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_sede")
+    @NotFound(action = NotFoundAction.IGNORE)
     private SedeEntity sede;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_docente")
+    @NotFound(action = NotFoundAction.IGNORE)
     private DocenteEntity docente;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_asignatura")
+    @NotFound(action = NotFoundAction.IGNORE)
     private AsignaturaEntity asignatura;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_responsable")
+    @NotFound(action = NotFoundAction.IGNORE)
     private ResponsableVisitaEntity responsable;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_usuario_auditor")
+    @NotFound(action = NotFoundAction.IGNORE)
     private UsuarioSistemaEntity usuarioAuditor;
 
     @Enumerated(EnumType.STRING)

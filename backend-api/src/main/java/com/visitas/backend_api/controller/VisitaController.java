@@ -2,6 +2,8 @@ package com.visitas.backend_api.controller;
 
 import com.visitas.backend_api.dto.VisitaCreateDTO;
 import com.visitas.backend_api.dto.VisitaResponseDTO;
+import com.visitas.backend_api.entity.VisitaInopinadaEntity;
+import com.visitas.backend_api.repository.VisitaInopinadaEntityRepository;
 import com.visitas.backend_api.service.VisitaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +19,7 @@ import java.util.List;
 public class VisitaController {
 
     private final VisitaService visitaService;
+    private final VisitaInopinadaEntityRepository visitaRepository;
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -34,6 +37,20 @@ public class VisitaController {
     @PreAuthorize("hasRole('AUDITOR')")
     public ResponseEntity<List<VisitaResponseDTO>> listarMisVisitasComoAuditor() {
         return ResponseEntity.ok(visitaService.listarMisVisitasComoAuditor());
+    }
+
+    // Endpoint temporal para depuración - REMOVER EN PRODUCCION
+    @GetMapping("/debug-all")
+    @PreAuthorize("hasAnyRole('ADMIN', 'AUDITOR')")
+    public ResponseEntity<List<VisitaInopinadaEntity>> debugAllVisitas() {
+        List<VisitaInopinadaEntity> visitas = visitaRepository.findAll();
+        System.out.println("TOTAL VISITAS: " + visitas.size());
+        for (VisitaInopinadaEntity v : visitas) {
+            System.out.println("Visita ID: " + v.getId() + 
+                ", Auditor ID: " + (v.getUsuarioAuditor() != null ? v.getUsuarioAuditor().getId() : "NULL") +
+                ", Estado: " + v.getEstadoVisita());
+        }
+        return ResponseEntity.ok(visitas);
     }
 
     @GetMapping("/docente/{idDocente}")
