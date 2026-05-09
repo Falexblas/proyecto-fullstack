@@ -2,15 +2,20 @@
 
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
 
-const data = [
-  { area: "Control Docente", cumplimiento: 92 },
-  { area: "Material Virtual", cumplimiento: 78 },
-  { area: "Asistencia", cumplimiento: 95 },
-  { area: "Avance Silabico", cumplimiento: 85 },
-  { area: "Guia Practica", cumplimiento: 82 },
+export interface CumplimientoChartData {
+  area: string
+  porcentajeCumplimiento: number
+}
+
+const defaultData: CumplimientoChartData[] = [
+  { area: "Control Docente", porcentajeCumplimiento: 92 },
+  { area: "Material Virtual", porcentajeCumplimiento: 78 },
+  { area: "Asistencia", porcentajeCumplimiento: 95 },
+  { area: "Avance Silabico", porcentajeCumplimiento: 85 },
+  { area: "Guia Practica", porcentajeCumplimiento: 82 },
 ]
 
-export function CumplimientoChart() {
+export function CumplimientoChart({ data = defaultData }: { data?: CumplimientoChartData[] }) {
   return (
     <div className="h-[300px] w-full">
       <ResponsiveContainer width="100%" height="100%">
@@ -43,7 +48,7 @@ export function CumplimientoChart() {
             formatter={(value) => [`${value}%`, "Cumplimiento"]}
           />
           <Bar 
-            dataKey="cumplimiento" 
+            dataKey="porcentajeCumplimiento" 
             fill="hsl(var(--primary))" 
             radius={[0, 4, 4, 0]}
           />

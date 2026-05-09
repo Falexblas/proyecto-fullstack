@@ -8,6 +8,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -28,13 +30,17 @@ public class UsuarioDTO {
     @NotNull(message = "El rol es obligatorio")
     private Integer idRol;
 
-    private Rol nombreRol;
+    private String password;
+
+    private String rol;
 
     private Integer idDocente;
 
     private Integer idResponsable;
 
     private Boolean estado;
+
+    private LocalDateTime createdAt;
 
     private String nombreDocente;
 

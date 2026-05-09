@@ -18,4 +18,7 @@ public class RequerimientoVisitaDTO {
     private EstadoRequerimiento estado;
     private String respuesta;
     private LocalDate fechaRespuesta;
+    private String nombreDocente;
+    private String nombreAsignatura;
+    private String nombreSede;
 }

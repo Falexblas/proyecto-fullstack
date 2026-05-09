@@ -1,6 +1,6 @@
-"use client"
+﻿"use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -37,168 +37,172 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { 
-  AlertCircle, 
-  Search, 
-  MoreHorizontal, 
+import { useToast } from "@/hooks/use-toast"
+import { requerimientosService, type RequerimientoVisita } from "@/services/requerimientos.service"
+import {
+  AlertCircle,
+  Search,
+  MoreHorizontal,
   Eye,
   CheckCircle2,
   Clock,
   XCircle,
   MessageSquare,
   FileText,
-  Filter
+  Filter,
 } from "lucide-react"
 
-// Datos de ejemplo basados en la BD - RequerimientoVisita
-const requerimientosData = [
-  {
-    id_requerimiento: 1,
-    id_visita: 15,
-    descripcion: "Se requiere proyector multimedia funcional para el aula 301. El actual no enciende correctamente.",
-    fecha_solicitud: "2024-05-10",
-    estado: "pendiente",
-    respuesta: null,
-    fecha_respuesta: null,
-    visita: {
-      docente: "Huerta Rojas Miguel Angel",
-      asignatura: "Programacion I",
-      sede: "Lima - Chorrillos"
-    }
-  },
-  {
-    id_requerimiento: 2,
-    id_visita: 14,
-    descripcion: "Solicitud de mantenimiento del aire acondicionado en Laboratorio de Computo 2. Hace demasiado ruido.",
-    fecha_solicitud: "2024-05-08",
-    estado: "en_proceso",
-    respuesta: "Se ha coordinado con el area de mantenimiento. Fecha programada: 15/05/2024",
-    fecha_respuesta: "2024-05-09",
-    visita: {
-      docente: "Garcia Lopez Maria",
-      asignatura: "Base de Datos II",
-      sede: "Lima - Chorrillos"
-    }
-  },
-  {
-    id_requerimiento: 3,
-    id_visita: 12,
-    descripcion: "El docente solicita acceso a software especializado MATLAB para las practicas de laboratorio.",
-    fecha_solicitud: "2024-05-05",
-    estado: "atendido",
-    respuesta: "Se ha instalado MATLAB R2024a en las 30 PCs del laboratorio. Licencia institucional activa.",
-    fecha_respuesta: "2024-05-07",
-    visita: {
-      docente: "Rodriguez Mendoza Carlos",
-      asignatura: "Calculo Numerico",
-      sede: "Lima Centro"
-    }
-  },
-  {
-    id_requerimiento: 4,
-    id_visita: 10,
-    descripcion: "Se requiere cambio de pizarra acrilica. La actual esta muy danada y no se borra correctamente.",
-    fecha_solicitud: "2024-05-01",
-    estado: "rechazado",
-    respuesta: "No hay presupuesto disponible este trimestre. Se reprogramara para el siguiente periodo.",
-    fecha_respuesta: "2024-05-03",
-    visita: {
-      docente: "Sanchez Diaz Laura",
-      asignatura: "Fisica II",
-      sede: "Lima Norte"
-    }
-  },
-  {
-    id_requerimiento: 5,
-    id_visita: 18,
-    descripcion: "Necesidad de mas puntos de red en el aula para conexion de equipos de los estudiantes.",
-    fecha_solicitud: "2024-05-12",
-    estado: "pendiente",
-    respuesta: null,
-    fecha_respuesta: null,
-    visita: {
-      docente: "Torres Ramirez Pedro",
-      asignatura: "Redes I",
-      sede: "Lima - Chorrillos"
-    }
-  },
-]
-
 const estadoConfig = {
-  pendiente: { 
-    label: "Pendiente", 
-    icon: Clock, 
-    color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400" 
+  pendiente: {
+    label: "Pendiente",
+    icon: Clock,
+    color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
   },
-  en_proceso: { 
-    label: "En Proceso", 
-    icon: AlertCircle, 
-    color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400" 
+  en_proceso: {
+    label: "En Proceso",
+    icon: AlertCircle,
+    color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
   },
-  atendido: { 
-    label: "Atendido", 
-    icon: CheckCircle2, 
-    color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" 
+  atendido: {
+    label: "Atendido",
+    icon: CheckCircle2,
+    color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
   },
-  rechazado: { 
-    label: "Rechazado", 
-    icon: XCircle, 
-    color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400" 
+  rechazado: {
+    label: "Rechazado",
+    icon: XCircle,
+    color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
   },
 }
 
+const normalizeEstado = (estado?: string) =>
+  estado?.toLowerCase().replace(" ", "_") as keyof typeof estadoConfig
+
 export default function RequerimientosPage() {
   const { user } = useAuth()
+  const { toast } = useToast()
   const isDocente = user?.rol === "DOCENTE"
   const canRespond = user?.rol === "ADMIN" || user?.rol === "AUDITOR"
-  
+
+  const [requerimientos, setRequerimientos] = useState<RequerimientoVisita[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [filterEstado, setFilterEstado] = useState<string>("todos")
-  const [selectedReq, setSelectedReq] = useState<typeof requerimientosData[0] | null>(null)
+  const [selectedReq, setSelectedReq] = useState<RequerimientoVisita | null>(null)
   const [respuesta, setRespuesta] = useState("")
-  const [nuevoEstado, setNuevoEstado] = useState("")
+  const [nuevoEstado, setNuevoEstado] = useState<string>("")
 
-  // Filtrar por rol: docentes solo ven sus requerimientos
-  const baseData = isDocente 
-    ? requerimientosData.filter(r => r.visita.docente === "Ana Martinez" || r.visita.docente === "Maria Garcia Lopez")
-    : requerimientosData
+  useEffect(() => {
+    cargarRequerimientos()
+  }, [])
 
-  const filteredRequerimientos = baseData.filter(req => {
-    const matchSearch = 
+  const cargarRequerimientos = async () => {
+    try {
+      setLoading(true)
+      const data = await requerimientosService.listAll()
+      setRequerimientos(data)
+    } catch (error) {
+      console.error("Error al cargar requerimientos:", error)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los requerimientos",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const isResponderDisabled = !nuevoEstado || !respuesta.trim()
+
+  const handleResponder = async () => {
+    if (!selectedReq) return
+
+    if (!nuevoEstado) {
+      toast({
+        title: "Error",
+        description: "Selecciona un estado para el requerimiento",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!respuesta.trim()) {
+      toast({
+        title: "Error",
+        description: "Completa el campo de respuesta antes de guardar",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      await requerimientosService.update(selectedReq.id, {
+        estado: nuevoEstado.toUpperCase(),
+        respuesta: respuesta.trim(),
+        fechaRespuesta: new Date().toISOString().split("T")[0],
+      })
+
+      toast({
+        title: "Éxito",
+        description: "Requerimiento actualizado correctamente",
+      })
+      setSelectedReq(null)
+      setRespuesta("")
+      setNuevoEstado("")
+      cargarRequerimientos()
+    } catch (error) {
+      console.error("Error al responder requerimiento:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el requerimiento",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleOpenRequerimiento = (req: RequerimientoVisita) => {
+    setSelectedReq(req)
+    setRespuesta(req.respuesta || "")
+    setNuevoEstado(req.estado?.toLowerCase() || "pendiente")
+  }
+
+  const fullDocenteName = user ? `${user.nombre} ${user.apellido}` : ""
+
+  const baseData = isDocente
+    ? requerimientos.filter((req) =>
+        req.nombreDocente?.toLowerCase() === fullDocenteName.toLowerCase()
+      )
+    : requerimientos
+
+  const filteredRequerimientos = baseData.filter((req) => {
+    const matchSearch =
       req.descripcion.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      req.visita.docente.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      req.visita.asignatura.toLowerCase().includes(searchTerm.toLowerCase())
-    
-    const matchEstado = filterEstado === "todos" || req.estado === filterEstado
-    
+      (req.nombreDocente ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (req.nombreAsignatura ?? "").toLowerCase().includes(searchTerm.toLowerCase())
+
+    const matchEstado = filterEstado === "todos" || req.estado?.toLowerCase() === filterEstado
+
     return matchSearch && matchEstado
   })
 
   const stats = {
     total: baseData.length,
-    pendientes: baseData.filter(r => r.estado === "pendiente").length,
-    enProceso: baseData.filter(r => r.estado === "en_proceso").length,
-    atendidos: baseData.filter(r => r.estado === "atendido").length,
-    rechazados: baseData.filter(r => r.estado === "rechazado").length,
-  }
-
-  const handleResponder = () => {
-    // Aqui iria la logica para guardar la respuesta
-    setSelectedReq(null)
-    setRespuesta("")
-    setNuevoEstado("")
+    pendientes: baseData.filter((r) => r.estado?.toLowerCase() === "pendiente").length,
+    enProceso: baseData.filter((r) => r.estado?.toLowerCase() === "en_proceso").length,
+    atendidos: baseData.filter((r) => r.estado?.toLowerCase() === "atendido").length,
+    rechazados: baseData.filter((r) => r.estado?.toLowerCase() === "rechazado").length,
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
             {isDocente ? "Mis Requerimientos" : "Requerimientos de Visitas"}
           </h1>
           <p className="text-muted-foreground">
-            {isDocente 
+            {isDocente
               ? "Requerimientos solicitados en las visitas a tus clases"
               : "Seguimiento de requerimientos solicitados durante las visitas inopinadas"
             }
@@ -206,7 +210,6 @@ export default function RequerimientosPage() {
         </div>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-5">
         <Card>
           <CardHeader className="pb-2">
@@ -258,7 +261,6 @@ export default function RequerimientosPage() {
         </Card>
       </div>
 
-      {/* Table */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -309,27 +311,27 @@ export default function RequerimientosPage() {
               </TableHeader>
               <TableBody>
                 {filteredRequerimientos.map((req) => {
-                  const config = estadoConfig[req.estado as keyof typeof estadoConfig]
+                  const estadoKey = normalizeEstado(req.estado)
+                  const config = estadoConfig[estadoKey] || estadoConfig.pendiente
                   const EstadoIcon = config.icon
+
                   return (
-                    <TableRow key={req.id_requerimiento}>
-                      <TableCell className="font-mono text-sm">
-                        {req.id_requerimiento}
-                      </TableCell>
+                    <TableRow key={req.id}>
+                      <TableCell className="font-mono text-sm">{req.id}</TableCell>
                       <TableCell>
-                        <p className="line-clamp-2 text-sm">
-                          {req.descripcion}
-                        </p>
+                        <p className="line-clamp-2 text-sm">{req.descripcion}</p>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          <p className="font-medium">{req.visita.docente}</p>
-                          <p className="text-muted-foreground">{req.visita.asignatura}</p>
-                          <p className="text-xs text-muted-foreground">{req.visita.sede}</p>
+                          <p className="font-medium">{req.nombreDocente}</p>
+                          <p className="text-muted-foreground">{req.nombreAsignatura}</p>
+                          <p className="text-xs text-muted-foreground">{req.nombreSede}</p>
                         </div>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {new Date(req.fecha_solicitud).toLocaleDateString("es-PE")}
+                        {req.fechaSolicitud
+                          ? new Date(req.fechaSolicitud).toLocaleDateString("es-PE")
+                          : "-"}
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary" className={config.color}>
@@ -345,18 +347,16 @@ export default function RequerimientosPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setSelectedReq(req)}>
+                            <DropdownMenuItem onClick={() => handleOpenRequerimiento(req)}>
                               <Eye className="h-4 w-4 mr-2" />
                               Ver detalle
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => {
-                              setSelectedReq(req)
-                              setNuevoEstado(req.estado)
-                              setRespuesta(req.respuesta || "")
-                            }}>
-                              <MessageSquare className="h-4 w-4 mr-2" />
-                              Responder
-                            </DropdownMenuItem>
+                            {canRespond && (
+                              <DropdownMenuItem onClick={() => handleOpenRequerimiento(req)}>
+                                <MessageSquare className="h-4 w-4 mr-2" />
+                                Responder
+                              </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -369,13 +369,19 @@ export default function RequerimientosPage() {
         </CardContent>
       </Card>
 
-      {/* Dialog para ver/responder */}
-      <Dialog open={!!selectedReq} onOpenChange={() => setSelectedReq(null)}>
+      <Dialog
+        open={!!selectedReq}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedReq(null)
+          }
+        }}
+      >
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Requerimiento #{selectedReq?.id_requerimiento}</DialogTitle>
+            <DialogTitle>Requerimiento #{selectedReq?.id}</DialogTitle>
             <DialogDescription>
-              Visita #{selectedReq?.id_visita} - {selectedReq?.visita.sede}
+              Visita #{selectedReq?.idVisita} - {selectedReq?.nombreSede}
             </DialogDescription>
           </DialogHeader>
           {selectedReq && (
@@ -384,26 +390,34 @@ export default function RequerimientosPage() {
                 <Label className="text-xs text-muted-foreground">Descripcion del requerimiento:</Label>
                 <p className="mt-1 text-sm">{selectedReq.descripcion}</p>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <Label className="text-xs text-muted-foreground">Docente:</Label>
-                  <p className="font-medium">{selectedReq.visita.docente}</p>
+                  <p className="font-medium">{selectedReq.nombreDocente}</p>
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Asignatura:</Label>
-                  <p className="font-medium">{selectedReq.visita.asignatura}</p>
+                  <p className="font-medium">{selectedReq.nombreAsignatura}</p>
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Fecha solicitud:</Label>
                   <p className="font-medium">
-                    {new Date(selectedReq.fecha_solicitud).toLocaleDateString("es-PE")}
+                    {selectedReq.fechaSolicitud
+                      ? new Date(selectedReq.fechaSolicitud).toLocaleDateString("es-PE")
+                      : "-"}
                   </p>
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Estado actual:</Label>
-                  <Badge variant="secondary" className={estadoConfig[selectedReq.estado as keyof typeof estadoConfig].color}>
-                    {estadoConfig[selectedReq.estado as keyof typeof estadoConfig].label}
+                  <Badge
+                    variant="secondary"
+                    className={
+                      estadoConfig[normalizeEstado(selectedReq.estado)]?.color ||
+                      estadoConfig.pendiente.color
+                    }
+                  >
+                    {estadoConfig[normalizeEstado(selectedReq.estado)]?.label || "Pendiente"}
                   </Badge>
                 </div>
               </div>
@@ -413,40 +427,47 @@ export default function RequerimientosPage() {
                   <Label className="text-xs text-muted-foreground">Respuesta:</Label>
                   <p className="mt-1 text-sm">{selectedReq.respuesta}</p>
                   <p className="text-xs text-muted-foreground mt-2">
-                    Respondido: {selectedReq.fecha_respuesta && new Date(selectedReq.fecha_respuesta).toLocaleDateString("es-PE")}
+                    Respondido: {selectedReq.fechaRespuesta && new Date(selectedReq.fechaRespuesta).toLocaleDateString("es-PE")}
                   </p>
                 </div>
               )}
 
-              <div className="space-y-3 border-t pt-4">
-                <Label>Actualizar estado y respuesta:</Label>
-                <Select value={nuevoEstado} onValueChange={setNuevoEstado}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar nuevo estado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pendiente">Pendiente</SelectItem>
-                    <SelectItem value="en_proceso">En Proceso</SelectItem>
-                    <SelectItem value="atendido">Atendido</SelectItem>
-                    <SelectItem value="rechazado">Rechazado</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Textarea
-                  placeholder="Escriba la respuesta o comentario..."
-                  value={respuesta}
-                  onChange={(e) => setRespuesta(e.target.value)}
-                  rows={3}
-                />
-              </div>
+              {canRespond && (
+                <div className="space-y-3 border-t pt-4">
+                  <Label>Actualizar estado y respuesta:</Label>
+                  <Select value={nuevoEstado} onValueChange={setNuevoEstado}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar nuevo estado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pendiente">Pendiente</SelectItem>
+                      <SelectItem value="en_proceso">En Proceso</SelectItem>
+                      <SelectItem value="atendido">Atendido</SelectItem>
+                      <SelectItem value="rechazado">Rechazado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Textarea
+                    placeholder="Escriba la respuesta o comentario..."
+                    value={respuesta}
+                    onChange={(e) => setRespuesta(e.target.value)}
+                    rows={3}
+                  />
+                  {!respuesta.trim() && (
+                    <p className="text-sm text-red-600">Por favor completa el campo de respuesta antes de guardar.</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setSelectedReq(null)}>
               Cancelar
             </Button>
-            <Button onClick={handleResponder}>
-              Guardar Respuesta
-            </Button>
+            {canRespond && (
+              <Button disabled={isResponderDisabled} onClick={handleResponder}>
+                Guardar Respuesta
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

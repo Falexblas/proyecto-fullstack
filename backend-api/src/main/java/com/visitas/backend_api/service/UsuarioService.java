@@ -55,7 +55,11 @@ public class UsuarioService {
 
         UsuarioSistemaEntity usuario = new UsuarioSistemaEntity();
         usuario.setEmail(dto.getEmail());
-        usuario.setPasswordHash(passwordEncoder.encode("password123"));
+        usuario.setPasswordHash(passwordEncoder.encode(
+                dto.getPassword() != null && !dto.getPassword().isBlank()
+                        ? dto.getPassword()
+                        : "password123"
+        ));
         usuario.setNombres(dto.getNombres());
         usuario.setApellidos(dto.getApellidos());
         usuario.setRol(rol);
@@ -90,6 +94,10 @@ public class UsuarioService {
         usuario.setApellidos(dto.getApellidos());
         usuario.setRol(rol);
         usuario.setEstado(dto.getEstado());
+
+        if (dto.getPassword() != null && !dto.getPassword().isBlank()) {
+            usuario.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
+        }
 
         if (dto.getIdDocente() != null) {
             DocenteEntity docente = docenteRepository.findById(dto.getIdDocente())
@@ -126,7 +134,7 @@ public class UsuarioService {
         dto.setNombres(entity.getNombres());
         dto.setApellidos(entity.getApellidos());
         dto.setIdRol(entity.getRol().getId());
-        dto.setNombreRol(entity.getRol().getNombreRol());
+        dto.setRol(entity.getRol().getNombreRol().name());
         dto.setEstado(entity.getEstado());
 
         if (entity.getDocente() != null) {
@@ -139,6 +147,7 @@ public class UsuarioService {
             dto.setNombreResponsable(entity.getResponsable().getNombres() + " " + entity.getResponsable().getApellidos());
         }
 
+        dto.setCreatedAt(entity.getCreatedAt());
         return dto;
     }
 }

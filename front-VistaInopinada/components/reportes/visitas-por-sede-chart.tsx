@@ -2,29 +2,42 @@
 
 import { Cell, Pie, PieChart, ResponsiveContainer, Legend, Tooltip } from "recharts"
 
-const data = [
-  { name: "Lima Centro", value: 68, color: "hsl(var(--chart-1))" },
-  { name: "Lima Norte", value: 52, color: "hsl(var(--chart-2))" },
-  { name: "Lima Sur", value: 36, color: "hsl(var(--chart-3))" },
+export interface VisitasPorSedeChartData {
+  sede: string
+  cantidad: number
+  porcentaje: number
+  color?: string
+}
+
+const defaultData: VisitasPorSedeChartData[] = [
+  { sede: "Lima Centro", cantidad: 68, porcentaje: 44, color: "hsl(var(--chart-1))" },
+  { sede: "Lima Norte", cantidad: 52, porcentaje: 33, color: "hsl(var(--chart-2))" },
+  { sede: "Lima Sur", cantidad: 36, porcentaje: 23, color: "hsl(var(--chart-3))" },
 ]
 
-export function VisitasPorSedeChart() {
+export function VisitasPorSedeChart({ data = defaultData }: { data?: VisitasPorSedeChartData[] }) {
+  const enrichedData = data.map((item, index) => ({
+    ...item,
+    color: item.color || [`hsl(var(--chart-1))`, `hsl(var(--chart-2))`, `hsl(var(--chart-3))`][index % 3],
+  }))
+
   return (
     <div className="h-[300px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
-            data={data}
+            data={enrichedData}
             cx="50%"
             cy="50%"
             innerRadius={60}
             outerRadius={100}
             paddingAngle={2}
-            dataKey="value"
+            dataKey="cantidad"
+            nameKey="sede"
             label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
             labelLine={false}
           >
-            {data.map((entry, index) => (
+            {enrichedData.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.color} />
             ))}
           </Pie>

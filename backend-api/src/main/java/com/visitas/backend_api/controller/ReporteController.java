@@ -62,10 +62,25 @@ public class ReporteController {
         return ResponseEntity.ok(reporteService.obtenerRequerimientosPendientes());
     }
 
+    @GetMapping("/exportar/pdf")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<byte[]> exportarPdf(
+            @RequestParam(defaultValue = "semester") String periodo) {
+        byte[] pdfBytes = reporteService.exportarPdf(periodo);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("attachment", "reporte_visitas_" + periodo + ".pdf");
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
+    }
+
     @GetMapping("/exportar/excel")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<byte[]> exportarExcel(
-            @RequestParam(defaultValue = "semestre") String periodo) {
+            @RequestParam(defaultValue = "semester") String periodo) {
         byte[] excelBytes = reporteService.exportarExcel(periodo);
         
         HttpHeaders headers = new HttpHeaders();

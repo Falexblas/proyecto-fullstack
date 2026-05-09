@@ -23,6 +23,12 @@ public class ResponsableVisitaController {
         return ResponseEntity.ok(responsableService.listarTodos());
     }
 
+    @GetMapping("/activos")
+    @PreAuthorize("hasAnyRole('ADMIN', 'AUDITOR')")
+    public ResponseEntity<List<ResponsableVisitaDTO>> listarActivos() {
+        return ResponseEntity.ok(responsableService.listarActivos());
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'AUDITOR')")
     public ResponseEntity<ResponsableVisitaDTO> obtenerPorId(@PathVariable Integer id) {

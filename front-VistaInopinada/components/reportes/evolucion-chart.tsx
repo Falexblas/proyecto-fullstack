@@ -2,16 +2,21 @@
 
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts"
 
-const data = [
-  { mes: "Ene", cumplimiento: 78, visitas: 18 },
-  { mes: "Feb", cumplimiento: 82, visitas: 22 },
-  { mes: "Mar", cumplimiento: 79, visitas: 25 },
-  { mes: "Abr", cumplimiento: 85, visitas: 28 },
-  { mes: "May", cumplimiento: 88, visitas: 32 },
-  { mes: "Jun", cumplimiento: 87, visitas: 31 },
+export interface EvolucionChartData {
+  mes: string
+  cumplimiento: number
+}
+
+const defaultData: EvolucionChartData[] = [
+  { mes: "Ene", cumplimiento: 78 },
+  { mes: "Feb", cumplimiento: 82 },
+  { mes: "Mar", cumplimiento: 79 },
+  { mes: "Abr", cumplimiento: 85 },
+  { mes: "May", cumplimiento: 88 },
+  { mes: "Jun", cumplimiento: 87 },
 ]
 
-export function EvolucionChart() {
+export function EvolucionChart({ data = defaultData }: { data?: EvolucionChartData[] }) {
   return (
     <div className="h-[300px] w-full">
       <ResponsiveContainer width="100%" height="100%">
@@ -46,10 +51,7 @@ export function EvolucionChart() {
               fontSize: "12px"
             }}
             labelStyle={{ color: "hsl(var(--foreground))" }}
-            formatter={(value, name) => [
-              name === "cumplimiento" ? `${value}%` : value,
-              name === "cumplimiento" ? "Cumplimiento" : "Visitas"
-            ]}
+            formatter={(value) => [`${value}%`, "Cumplimiento"]}
           />
           <Area 
             type="monotone" 

@@ -68,11 +68,11 @@ export function Sidebar() {
   const getRoleBadgeColor = (role: UserRole) => {
     switch (role) {
       case "ADMIN":
-        return "bg-chart-1/20 text-chart-1"
+        return "bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-400"
       case "AUDITOR":
-        return "bg-chart-2/20 text-chart-2"
+        return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
       case "DOCENTE":
-        return "bg-chart-3/20 text-chart-3"
+        return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
       default:
         return "bg-muted text-muted-foreground"
     }

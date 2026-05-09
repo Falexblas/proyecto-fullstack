@@ -23,6 +23,11 @@ public class ResponsableVisitaService {
                 .collect(Collectors.toList());
     }
 
+    public List<ResponsableVisitaDTO> listarActivos() {
+        // Since there's no estadoActivo field, return all responsables
+        return listarTodos();
+    }
+
     public ResponsableVisitaDTO obtenerPorId(Integer id) {
         ResponsableVisitaEntity responsable = responsableRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Responsable", id));

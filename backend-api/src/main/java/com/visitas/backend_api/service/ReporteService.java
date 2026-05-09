@@ -7,6 +7,12 @@ import com.visitas.backend_api.enums.EstadoVisita;
 import com.visitas.backend_api.repository.RequerimientoVisitaEntityRepository;
 import com.visitas.backend_api.repository.VisitaInopinadaEntityRepository;
 import lombok.RequiredArgsConstructor;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
@@ -41,6 +47,7 @@ public class ReporteService {
     public ReportesStatsDTO obtenerEstadisticas(String periodo) {
         ReportesStatsDTO stats = new ReportesStatsDTO();
         
+        periodo = normalizarPeriodo(periodo);
         LocalDate hoy = LocalDate.now();
         LocalDate inicioPeriodo;
         LocalDate inicioPeriodoAnterior;
@@ -287,6 +294,80 @@ public class ReporteService {
             return outputStream.toByteArray();
         } catch (Exception e) {
             throw new RuntimeException("Error al generar Excel", e);
+        }
+    }
+
+    public byte[] exportarPdf(String periodo) {
+        ReporteDataDTO reporte = obtenerReporteCompleto(periodo);
+
+        try (PDDocument document = new PDDocument()) {
+            PDPage page = new PDPage(PDRectangle.LETTER);
+            document.addPage(page);
+
+            try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
+                PDFont headingFont = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
+                PDFont bodyFont = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
+
+                contentStream.beginText();
+                contentStream.setFont(headingFont, 16);
+                contentStream.newLineAtOffset(50, 730);
+                contentStream.showText("Reporte de Visitas - " + periodo);
+                contentStream.endText();
+
+                contentStream.beginText();
+                contentStream.setFont(bodyFont, 12);
+                contentStream.newLineAtOffset(50, 700);
+                contentStream.showText("Total Visitas: " + reporte.getEstadisticas().getTotalVisitas());
+                contentStream.newLineAtOffset(0, -18);
+                contentStream.showText("Cumplimiento: " + reporte.getEstadisticas().getCumplimiento() + "%");
+                contentStream.newLineAtOffset(0, -18);
+                contentStream.showText("Docentes Visitados: " + reporte.getEstadisticas().getDocentesVisitados());
+                contentStream.newLineAtOffset(0, -18);
+                contentStream.showText("Sedes Activas: " + reporte.getEstadisticas().getSedesActivas());
+                contentStream.endText();
+
+                contentStream.beginText();
+                contentStream.setFont(headingFont, 14);
+                contentStream.newLineAtOffset(50, 620);
+                contentStream.showText("Top Docentes");
+                contentStream.endText();
+
+                float yPosition = 600;
+                contentStream.beginText();
+                contentStream.setFont(bodyFont, 12);
+                contentStream.newLineAtOffset(50, yPosition);
+                for (TopDocenteDTO docente : reporte.getTopDocentes()) {
+                    contentStream.showText(docente.getRanking() + ". " + docente.getNombre() + " - " + docente.getCumplimiento() + "%");
+                    contentStream.newLineAtOffset(0, -16);
+                }
+                contentStream.endText();
+            }
+
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            document.save(outputStream);
+            return outputStream.toByteArray();
+        } catch (Exception e) {
+            throw new RuntimeException("Error al generar PDF", e);
+        }
+    }
+
+    private String normalizarPeriodo(String periodo) {
+        if (periodo == null) {
+            return "semestre";
+        }
+
+        switch (periodo.toLowerCase()) {
+            case "month":
+            case "mes":
+                return "mes";
+            case "year":
+            case "año":
+            case "ano":
+                return "año";
+            case "semester":
+            case "semestre":
+            default:
+                return "semestre";
         }
     }
 

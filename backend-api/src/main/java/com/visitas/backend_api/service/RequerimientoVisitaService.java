@@ -24,8 +24,16 @@ public class RequerimientoVisitaService {
     private final RequerimientoVisitaEntityRepository requerimientoRepository;
     private final VisitaInopinadaEntityRepository visitaRepository;
 
+    @Transactional(readOnly = true)
     public List<RequerimientoVisitaDTO> listarPorVisita(Integer idVisita) {
         return requerimientoRepository.findByVisitaId(idVisita).stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<RequerimientoVisitaDTO> listarTodos() {
+        return requerimientoRepository.findAll().stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
     }
@@ -57,8 +65,10 @@ public class RequerimientoVisitaService {
                 .orElseThrow(() -> new ResourceNotFoundException("Requerimiento", id));
 
         requerimiento.setRespuesta(dto.getRespuesta());
-        requerimiento.setEstado(EstadoRequerimiento.ATENDIDO);
-        requerimiento.setFechaRespuesta(LocalDate.now());
+        if (dto.getEstado() != null) {
+            requerimiento.setEstado(dto.getEstado());
+        }
+        requerimiento.setFechaRespuesta(dto.getFechaRespuesta() != null ? dto.getFechaRespuesta() : LocalDate.now());
 
         requerimiento = requerimientoRepository.save(requerimiento);
         return toDTO(requerimiento);
@@ -81,6 +91,19 @@ public class RequerimientoVisitaService {
         dto.setEstado(entity.getEstado());
         dto.setRespuesta(entity.getRespuesta());
         dto.setFechaRespuesta(entity.getFechaRespuesta());
+
+        if (entity.getVisita() != null) {
+            if (entity.getVisita().getDocente() != null) {
+                dto.setNombreDocente(entity.getVisita().getDocente().getNombres() + " " + entity.getVisita().getDocente().getApellidos());
+            }
+            if (entity.getVisita().getAsignatura() != null) {
+                dto.setNombreAsignatura(entity.getVisita().getAsignatura().getNombre());
+            }
+            if (entity.getVisita().getSede() != null) {
+                dto.setNombreSede(entity.getVisita().getSede().getNombre());
+            }
+        }
+
         return dto;
     }
 }

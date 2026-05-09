@@ -19,6 +19,12 @@ public class RequerimientoVisitaController {
 
     private final RequerimientoVisitaService requerimientoService;
 
+    @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'AUDITOR', 'DOCENTE')")
+    public ResponseEntity<List<RequerimientoVisitaDTO>> listarTodos() {
+        return ResponseEntity.ok(requerimientoService.listarTodos());
+    }
+
     @GetMapping("/visita/{idVisita}")
     @PreAuthorize("hasAnyRole('ADMIN', 'AUDITOR', 'DOCENTE')")
     public ResponseEntity<List<RequerimientoVisitaDTO>> listarPorVisita(@PathVariable Integer idVisita) {
@@ -38,7 +44,7 @@ public class RequerimientoVisitaController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('AUDITOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'AUDITOR')")
     public ResponseEntity<RequerimientoVisitaDTO> responder(
             @PathVariable Integer id,
             @Valid @RequestBody RequerimientoUpdateDTO dto) {

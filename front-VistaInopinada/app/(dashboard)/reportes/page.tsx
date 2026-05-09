@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -14,6 +15,8 @@ import { CumplimientoChart } from "@/components/reportes/cumplimiento-chart"
 import { VisitasPorSedeChart } from "@/components/reportes/visitas-por-sede-chart"
 import { EvolucionChart } from "@/components/reportes/evolucion-chart"
 import { RouteGuard } from "@/components/route-guard"
+import { useToast } from "@/hooks/use-toast"
+import { reportesService, ReporteData, PeriodoReporte } from "@/services/reportes.service"
 
 export default function ReportesPage() {
   return (
@@ -24,35 +27,91 @@ export default function ReportesPage() {
 }
 
 function ReportesContent() {
+  const { toast } = useToast()
+  const [periodo, setPeriodo] = useState<PeriodoReporte>("semester")
+  const [reportData, setReportData] = useState<ReporteData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [exporting, setExporting] = useState(false)
+
+  useEffect(() => {
+    ;(async () => {
+      await cargarReporte(periodo)
+    })()
+  }, [periodo])
+
+  const cargarReporte = async (periodoSeleccionado: PeriodoReporte) => {
+    setLoading(true)
+    try {
+      const data = await reportesService.getReporteCompleto(periodoSeleccionado)
+      setReportData(data)
+    } catch (error) {
+      console.error(error)
+      toast({
+        title: "Error al cargar reportes",
+        description: "No se pudo obtener la información del servidor.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleExportPdf = async () => {
+    setExporting(true)
+    try {
+      const blob = await reportesService.exportPdf(periodo)
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = `reporte_visitas_${periodo}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error(error)
+      toast({
+        title: "Exportación fallida",
+        description: "No se pudo generar el PDF de reporte.",
+        variant: "destructive",
+      })
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const estadisticas = reportData?.estadisticas
+  const cumplimientoPorArea = reportData?.cumplimientoPorArea ?? []
+  const visitasPorSede = reportData?.visitasPorSede ?? []
+  const evolucion = reportData?.evolucionCumplimiento ?? []
+  const topDocentes = reportData?.topDocentes ?? []
+  const requerimientos = reportData?.requerimientosPendientes ?? []
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Reportes</h1>
-          <p className="text-muted-foreground">
-            Estadisticas y analisis del sistema
-          </p>
+          <p className="text-muted-foreground">Estadísticas y análisis del sistema</p>
         </div>
         <div className="flex gap-2">
-          <Select defaultValue="semester">
+          <Select value={periodo} onValueChange={(value) => setPeriodo(value as PeriodoReporte)}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Periodo" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="month">Este mes</SelectItem>
               <SelectItem value="semester">Este semestre</SelectItem>
-              <SelectItem value="year">Este ano</SelectItem>
+              <SelectItem value="year">Este año</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExportPdf} disabled={exporting || loading}>
             <Download className="h-4 w-4 mr-2" />
-            Exportar
+            {exporting ? "Exportando..." : "Exportar PDF"}
           </Button>
         </div>
       </div>
 
-      {/* Summary Stats */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -60,8 +119,10 @@ function ReportesContent() {
             <FileBarChart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">156</p>
-            <p className="text-xs text-success">+23% vs semestre anterior</p>
+            <p className="text-2xl font-bold">{loading ? "..." : estadisticas?.totalVisitas ?? "--"}</p>
+            <p className={`text-xs ${((estadisticas?.totalVisitasCrecimiento ?? 0) >= 0) ? "text-success" : "text-destructive"}`}>
+              {loading ? "Cargando..." : `${estadisticas?.totalVisitasCrecimiento ?? 0}% vs periodo anterior`}
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -70,8 +131,10 @@ function ReportesContent() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">87%</p>
-            <p className="text-xs text-success">+5% vs semestre anterior</p>
+            <p className="text-2xl font-bold">{loading ? "..." : `${estadisticas?.cumplimiento ?? 0}%`}</p>
+            <p className={`text-xs ${((estadisticas?.cumplimientoCrecimiento ?? 0) >= 0) ? "text-success" : "text-destructive"}`}>
+              {loading ? "Cargando..." : `${estadisticas?.cumplimientoCrecimiento ?? 0}% vs periodo anterior`}
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -80,8 +143,10 @@ function ReportesContent() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">42</p>
-            <p className="text-xs text-muted-foreground">de 48 docentes</p>
+            <p className="text-2xl font-bold">{loading ? "..." : estadisticas?.docentesVisitados ?? "--"}</p>
+            <p className="text-xs text-muted-foreground">
+              {loading ? "Cargando..." : `de ${estadisticas?.totalDocentes ?? "--"} docentes`}
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -90,81 +155,70 @@ function ReportesContent() {
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">3</p>
-            <p className="text-xs text-muted-foreground">con visitas registradas</p>
+            <p className="text-2xl font-bold">{loading ? "..." : estadisticas?.sedesActivas ?? "--"}</p>
+            <p className="text-xs text-muted-foreground">
+              {loading ? "Cargando..." : estadisticas?.sedesDescripcion ?? "Con visitas registradas"}
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Charts Row 1 */}
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Cumplimiento por Area</CardTitle>
-            <CardDescription>
-              Porcentaje de cumplimiento en cada area evaluada
-            </CardDescription>
+            <CardTitle>Cumplimiento por Área</CardTitle>
+            <CardDescription>Porcentaje de cumplimiento en cada área evaluada</CardDescription>
           </CardHeader>
           <CardContent>
-            <CumplimientoChart />
+            <CumplimientoChart data={cumplimientoPorArea} />
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
             <CardTitle>Visitas por Sede</CardTitle>
-            <CardDescription>
-              Distribucion de visitas entre sedes
-            </CardDescription>
+            <CardDescription>Distribución de visitas entre sedes</CardDescription>
           </CardHeader>
           <CardContent>
-            <VisitasPorSedeChart />
+            <VisitasPorSedeChart data={visitasPorSede} />
           </CardContent>
         </Card>
       </div>
 
-      {/* Charts Row 2 */}
       <Card>
         <CardHeader>
-          <CardTitle>Evolucion del Cumplimiento</CardTitle>
-          <CardDescription>
-            Tendencia del cumplimiento general a lo largo del semestre
-          </CardDescription>
+          <CardTitle>Evolución del Cumplimiento</CardTitle>
+          <CardDescription>Tendencia del cumplimiento general a lo largo del periodo</CardDescription>
         </CardHeader>
         <CardContent>
-          <EvolucionChart />
+          <EvolucionChart data={evolucion} />
         </CardContent>
       </Card>
 
-      {/* Top Docentes */}
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Top Docentes - Mayor Cumplimiento</CardTitle>
-            <CardDescription>
-              Docentes con mejor desempeno
-            </CardDescription>
+            <CardDescription>Docentes con mejor desempeño</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {[
-                { nombre: "Roberto Guzman", cumplimiento: 100, visitas: 3 },
-                { nombre: "Maria Garcia", cumplimiento: 95, visitas: 8 },
-                { nombre: "Laura Sanchez", cumplimiento: 92, visitas: 6 },
-                { nombre: "Sofia Herrera", cumplimiento: 88, visitas: 7 },
-                { nombre: "Carlos Rodriguez", cumplimiento: 78, visitas: 5 },
-              ].map((doc, i) => (
-                <div key={i} className="flex items-center gap-4">
-                  <span className="text-lg font-bold text-muted-foreground w-6">{i + 1}</span>
-                  <div className="flex-1">
-                    <p className="font-medium">{doc.nombre}</p>
-                    <p className="text-xs text-muted-foreground">{doc.visitas} visitas</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-success">{doc.cumplimiento}%</p>
-                  </div>
-                </div>
-              ))}
+              {topDocentes.length > 0
+                ? topDocentes.map((docente, index) => (
+                    <div key={docente.ranking} className="flex items-center gap-4">
+                      <span className="text-lg font-bold text-muted-foreground w-6">{index + 1}</span>
+                      <div className="flex-1">
+                        <p className="font-medium">{docente.nombre}</p>
+                        <p className="text-xs text-muted-foreground">{docente.totalVisitas} visitas</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-success">{docente.cumplimiento}%</p>
+                      </div>
+                    </div>
+                  ))
+                : (
+                  <p className="text-sm text-muted-foreground">No hay datos disponibles.</p>
+                )}
             </div>
           </CardContent>
         </Card>
@@ -172,27 +226,24 @@ function ReportesContent() {
         <Card>
           <CardHeader>
             <CardTitle>Requerimientos Pendientes</CardTitle>
-            <CardDescription>
-              Requerimientos de mejora por atender
-            </CardDescription>
+            <CardDescription>Requerimientos de mejora por atender</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {[
-                { docente: "Pedro Martinez", descripcion: "Actualizar material virtual", fecha: "2026-04-05", prioridad: "alta" },
-                { docente: "Carmen Ramos", descripcion: "Mejorar control de asistencia", fecha: "2026-04-04", prioridad: "media" },
-                { docente: "Carlos Rodriguez", descripcion: "Actualizar avance silabico", fecha: "2026-04-06", prioridad: "media" },
-                { docente: "Pedro Martinez", descripcion: "Rubrica de evaluacion", fecha: "2026-04-05", prioridad: "alta" },
-              ].map((req, i) => (
-                <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                  <div className={`w-2 h-2 rounded-full mt-2 ${req.prioridad === 'alta' ? 'bg-destructive' : 'bg-warning'}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm">{req.descripcion}</p>
-                    <p className="text-xs text-muted-foreground">{req.docente}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{req.fecha}</p>
-                  </div>
-                </div>
-              ))}
+              {requerimientos.length > 0
+                ? requerimientos.map((req) => (
+                    <div key={req.id} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                      <div className={`w-2 h-2 rounded-full mt-2 ${req.tipo === "alta" ? "bg-destructive" : "bg-warning"}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm">{req.descripcion}</p>
+                        <p className="text-xs text-muted-foreground">{req.docente}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{req.fecha}</p>
+                      </div>
+                    </div>
+                  ))
+                : (
+                  <p className="text-sm text-muted-foreground">No hay requerimientos pendientes.</p>
+                )}
             </div>
           </CardContent>
         </Card>

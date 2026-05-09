@@ -1,7 +1,9 @@
 package com.visitas.backend_api.controller;
 
 import com.visitas.backend_api.dto.DocenteDTO;
+import com.visitas.backend_api.dto.EmailRequestDTO;
 import com.visitas.backend_api.service.DocenteService;
+import com.visitas.backend_api.service.EmailService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +18,7 @@ import java.util.List;
 public class DocenteController {
 
     private final DocenteService docenteService;
+    private final EmailService emailService;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'AUDITOR')")
@@ -52,5 +55,12 @@ public class DocenteController {
     public ResponseEntity<Void> eliminar(@PathVariable Integer id) {
         docenteService.eliminar(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/email")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> enviarEmail(@Valid @RequestBody EmailRequestDTO emailRequest) {
+        emailService.enviarEmail(emailRequest);
+        return ResponseEntity.ok().build();
     }
 }
