@@ -10,10 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Download, FileBarChart, TrendingUp, Users, Building2 } from "lucide-react"
-import { CumplimientoChart } from "@/components/reportes/cumplimiento-chart"
+import { Download, FileBarChart, Users, Building2 } from "lucide-react"
 import { VisitasPorSedeChart } from "@/components/reportes/visitas-por-sede-chart"
-import { EvolucionChart } from "@/components/reportes/evolucion-chart"
 import { RouteGuard } from "@/components/route-guard"
 import { useToast } from "@/hooks/use-toast"
 import { reportesService, ReporteData, PeriodoReporte } from "@/services/reportes.service"
@@ -81,9 +79,7 @@ function ReportesContent() {
   }
 
   const estadisticas = reportData?.estadisticas
-  const cumplimientoPorArea = reportData?.cumplimientoPorArea ?? []
   const visitasPorSede = reportData?.visitasPorSede ?? []
-  const evolucion = reportData?.evolucionCumplimiento ?? []
   const topDocentes = reportData?.topDocentes ?? []
   const requerimientos = reportData?.requerimientosPendientes ?? []
 
@@ -127,18 +123,6 @@ function ReportesContent() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Cumplimiento</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{loading ? "..." : `${estadisticas?.cumplimiento ?? 0}%`}</p>
-            <p className={`text-xs ${((estadisticas?.cumplimientoCrecimiento ?? 0) >= 0) ? "text-success" : "text-destructive"}`}>
-              {loading ? "Cargando..." : `${estadisticas?.cumplimientoCrecimiento ?? 0}% vs periodo anterior`}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Docentes Visitados</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -163,35 +147,13 @@ function ReportesContent() {
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Cumplimiento por Área</CardTitle>
-            <CardDescription>Porcentaje de cumplimiento en cada área evaluada</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <CumplimientoChart data={cumplimientoPorArea} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Visitas por Sede</CardTitle>
-            <CardDescription>Distribución de visitas entre sedes</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <VisitasPorSedeChart data={visitasPorSede} />
-          </CardContent>
-        </Card>
-      </div>
-
       <Card>
         <CardHeader>
-          <CardTitle>Evolución del Cumplimiento</CardTitle>
-          <CardDescription>Tendencia del cumplimiento general a lo largo del periodo</CardDescription>
+          <CardTitle>Visitas por Sede</CardTitle>
+          <CardDescription>Distribución de visitas entre sedes</CardDescription>
         </CardHeader>
         <CardContent>
-          <EvolucionChart data={evolucion} />
+          <VisitasPorSedeChart data={visitasPorSede} />
         </CardContent>
       </Card>
 

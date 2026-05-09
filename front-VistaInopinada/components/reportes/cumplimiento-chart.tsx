@@ -7,15 +7,15 @@ export interface CumplimientoChartData {
   porcentajeCumplimiento: number
 }
 
-const defaultData: CumplimientoChartData[] = [
-  { area: "Control Docente", porcentajeCumplimiento: 92 },
-  { area: "Material Virtual", porcentajeCumplimiento: 78 },
-  { area: "Asistencia", porcentajeCumplimiento: 95 },
-  { area: "Avance Silabico", porcentajeCumplimiento: 85 },
-  { area: "Guia Practica", porcentajeCumplimiento: 82 },
-]
-
-export function CumplimientoChart({ data = defaultData }: { data?: CumplimientoChartData[] }) {
+export function CumplimientoChart({ data }: { data?: CumplimientoChartData[] }) {
+  // Si no hay datos, mostrar mensaje
+  if (!data || data.length === 0) {
+    return (
+      <div className="h-[300px] w-full flex items-center justify-center">
+        <p className="text-muted-foreground text-sm">No hay datos de cumplimiento disponibles</p>
+      </div>
+    )
+  }
   return (
     <div className="h-[300px] w-full">
       <ResponsiveContainer width="100%" height="100%">

@@ -1,8 +1,10 @@
 package com.visitas.backend_api.service;
 
+import com.visitas.backend_api.dto.RequerimientoCreateDTO;
 import com.visitas.backend_api.dto.VisitaCreateDTO;
 import com.visitas.backend_api.dto.VisitaResponseDTO;
 import com.visitas.backend_api.entity.AsignaturaEntity;
+import com.visitas.backend_api.entity.RequerimientoVisitaEntity;
 import com.visitas.backend_api.entity.DocenteEntity;
 import com.visitas.backend_api.entity.EvaluacionAsistenciaEstudiantesEntity;
 import com.visitas.backend_api.entity.EvaluacionAvanceSilabicoEntity;
@@ -13,7 +15,10 @@ import com.visitas.backend_api.entity.ResponsableVisitaEntity;
 import com.visitas.backend_api.entity.SedeEntity;
 import com.visitas.backend_api.entity.UsuarioSistemaEntity;
 import com.visitas.backend_api.entity.VisitaInopinadaEntity;
+import com.visitas.backend_api.dto.DashboardAuditorStatsDTO;
+import com.visitas.backend_api.enums.EstadoRequerimiento;
 import com.visitas.backend_api.enums.EstadoVisita;
+import com.visitas.backend_api.enums.Rol;
 import com.visitas.backend_api.exception.InvalidStateException;
 import com.visitas.backend_api.exception.ResourceNotFoundException;
 import com.visitas.backend_api.exception.UnauthorizedAccessException;
@@ -25,6 +30,7 @@ import com.visitas.backend_api.repository.EvaluacionAvanceSilabicoEntityReposito
 import com.visitas.backend_api.repository.EvaluacionControlDocenteEntityRepository;
 import com.visitas.backend_api.repository.EvaluacionGuiaPracticaEntityRepository;
 import com.visitas.backend_api.repository.EvaluacionMaterialVirtualEntityRepository;
+import com.visitas.backend_api.repository.RequerimientoVisitaEntityRepository;
 import com.visitas.backend_api.repository.ResponsableVisitaEntityRepository;
 import com.visitas.backend_api.repository.SedeEntityRepository;
 import com.visitas.backend_api.repository.UsuarioSistemaEntityRepository;
@@ -33,6 +39,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -52,6 +59,7 @@ public class VisitaService {
     private final EvaluacionAsistenciaEstudiantesEntityRepository evaluacionAsistenciaEstudiantesRepository;
     private final EvaluacionAvanceSilabicoEntityRepository evaluacionAvanceSilabicoRepository;
     private final EvaluacionGuiaPracticaEntityRepository evaluacionGuiaPracticaRepository;
+    private final RequerimientoVisitaEntityRepository requerimientoRepository;
     private final VisitaMapper visitaMapper;
     private final AuthService authService;
 
@@ -123,6 +131,20 @@ public class VisitaService {
 
         visita = visitaRepository.save(visita);
 
+        // Crear requerimientos si vienen en el DTO
+        if (dto.getRequerimientos() != null && !dto.getRequerimientos().isEmpty()) {
+            for (RequerimientoCreateDTO reqDTO : dto.getRequerimientos()) {
+                if (reqDTO.getDescripcion() != null && !reqDTO.getDescripcion().trim().isEmpty()) {
+                    RequerimientoVisitaEntity requerimiento = new RequerimientoVisitaEntity();
+                    requerimiento.setVisita(visita);
+                    requerimiento.setDescripcion(reqDTO.getDescripcion().trim());
+                    requerimiento.setEstado(EstadoRequerimiento.PENDIENTE);
+                    requerimiento.setFechaSolicitud(LocalDate.now());
+                    requerimientoRepository.save(requerimiento);
+                }
+            }
+        }
+
         return visitaMapper.toResponseDTO(visita);
     }
 
@@ -130,9 +152,28 @@ public class VisitaService {
         VisitaInopinadaEntity visita = visitaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Visita", id));
 
-        Integer currentDocenteId = authService.getCurrentDocenteId();
-        if (visita.getDocente().getId().equals(currentDocenteId)) {
+        Rol currentRole = authService.getCurrentUserRole();
+        Integer currentUserId = authService.getCurrentUserId();
+        
+        // ADMIN puede ver cualquier visita
+        if (currentRole == Rol.ADMIN) {
             return visitaMapper.toResponseDTO(visita);
+        }
+        
+        // AUDITOR solo puede ver las visitas que él creó
+        if (currentRole == Rol.AUDITOR) {
+            if (visita.getUsuarioAuditor() == null || !visita.getUsuarioAuditor().getId().equals(currentUserId)) {
+                throw new UnauthorizedAccessException("No puedes ver visitas de otros evaluadores");
+            }
+            return visitaMapper.toResponseDTO(visita);
+        }
+        
+        // DOCENTE solo puede ver sus propias visitas
+        if (currentRole == Rol.DOCENTE) {
+            Integer currentDocenteId = authService.getCurrentDocenteId();
+            if (!visita.getDocente().getId().equals(currentDocenteId)) {
+                throw new UnauthorizedAccessException("No puedes ver visitas de otros docentes");
+            }
         }
 
         return visitaMapper.toResponseDTO(visita);
@@ -244,5 +285,57 @@ public class VisitaService {
     public List<VisitaResponseDTO> listarMisVisitasComoAuditor() {
         Integer currentUserId = authService.getCurrentUserId();
         return listarPorAuditor(currentUserId);
+    }
+
+    public DashboardAuditorStatsDTO obtenerEstadisticasDashboardAuditor() {
+        Integer currentUserId = authService.getCurrentUserId();
+        
+        // Estadísticas básicas
+        long visitasEsteMes = visitaRepository.countVisitasEsteMesByAuditor(currentUserId);
+        long docentesEvaluados = visitaRepository.countDocentesEvaluadosByAuditor(currentUserId);
+        
+        // Requerimientos pendientes (PENDIENTE y EN_PROCESO)
+        List<EstadoRequerimiento> estadosPendientes = List.of(EstadoRequerimiento.PENDIENTE, EstadoRequerimiento.EN_PROCESO);
+        long requerimientosPendientes = requerimientoRepository.countRequerimientosPendientesByAuditor(currentUserId, estadosPendientes);
+        
+        // Próximas visitas (desde hoy en adelante)
+        List<DashboardAuditorStatsDTO.VisitaResumenDTO> proximasVisitas = visitaRepository
+                .findProximasVisitasByAuditor(currentUserId, java.time.LocalDate.now())
+                .stream()
+                .limit(5)
+                .map(v -> new DashboardAuditorStatsDTO.VisitaResumenDTO(
+                        v.getId(),
+                        v.getDocente().getNombres() + " " + v.getDocente().getApellidos(),
+                        v.getAsignatura().getNombre(),
+                        v.getFechaVisita().toString(),
+                        v.getHoraInicio().toString(),
+                        v.getSede().getNombre(),
+                        v.getEstadoVisita().toString()
+                ))
+                .collect(Collectors.toList());
+        
+        // Visitas recientes (últimas 5)
+        List<DashboardAuditorStatsDTO.VisitaResumenDTO> visitasRecientes = visitaRepository
+                .findRecentVisitasByAuditor(currentUserId)
+                .stream()
+                .limit(5)
+                .map(v -> new DashboardAuditorStatsDTO.VisitaResumenDTO(
+                        v.getId(),
+                        v.getDocente().getNombres() + " " + v.getDocente().getApellidos(),
+                        v.getAsignatura().getNombre(),
+                        v.getFechaVisita().toString(),
+                        v.getHoraInicio().toString(),
+                        v.getSede().getNombre(),
+                        v.getEstadoVisita().toString()
+                ))
+                .collect(Collectors.toList());
+        
+        return new DashboardAuditorStatsDTO(
+                visitasEsteMes,
+                docentesEvaluados,
+                requerimientosPendientes,
+                proximasVisitas,
+                visitasRecientes
+        );
     }
 }

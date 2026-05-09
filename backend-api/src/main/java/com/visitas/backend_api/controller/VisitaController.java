@@ -1,5 +1,6 @@
 package com.visitas.backend_api.controller;
 
+import com.visitas.backend_api.dto.DashboardAuditorStatsDTO;
 import com.visitas.backend_api.dto.VisitaCreateDTO;
 import com.visitas.backend_api.dto.VisitaResponseDTO;
 import com.visitas.backend_api.entity.VisitaInopinadaEntity;
@@ -98,5 +99,12 @@ public class VisitaController {
             @RequestBody String firmaHash) {
         VisitaResponseDTO response = visitaService.firmarPorAuditor(id, firmaHash);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/dashboard/auditor-stats")
+    @PreAuthorize("hasRole('AUDITOR')")
+    public ResponseEntity<DashboardAuditorStatsDTO> obtenerEstadisticasDashboard() {
+        DashboardAuditorStatsDTO stats = visitaService.obtenerEstadisticasDashboardAuditor();
+        return ResponseEntity.ok(stats);
     }
 }

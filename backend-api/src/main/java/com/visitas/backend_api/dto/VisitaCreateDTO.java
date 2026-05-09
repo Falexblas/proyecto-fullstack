@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -44,4 +45,6 @@ public class VisitaCreateDTO {
     private EvaluacionAsistenciaEstudiantesDTO evaluacionAsistenciaEstudiantes;
     private EvaluacionAvanceSilabicoDTO evaluacionAvanceSilabico;
     private EvaluacionGuiaPracticaDTO evaluacionGuiaPractica;
+
+    private List<RequerimientoCreateDTO> requerimientos;
 }

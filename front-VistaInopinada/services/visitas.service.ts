@@ -28,6 +28,10 @@ export interface Visita {
   updatedAt: string | null
 }
 
+export interface RequerimientoCreateData {
+  descripcion: string
+}
+
 export interface VisitaCreateData {
   fechaVisita: string
   horaInicio: string
@@ -39,6 +43,7 @@ export interface VisitaCreateData {
   idDocente: number
   idAsignatura: number
   idResponsable: number
+  requerimientos?: RequerimientoCreateData[]
 }
 
 export const visitasService = {

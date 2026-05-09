@@ -57,4 +57,26 @@ public class RequerimientoVisitaController {
         requerimientoService.eliminar(id);
         return ResponseEntity.noContent().build();
     }
+
+    // Nuevos endpoints para flujo de requerimientos
+    
+    @GetMapping("/mis-requerimientos")
+    @PreAuthorize("hasRole('DOCENTE')")
+    public ResponseEntity<List<RequerimientoVisitaDTO>> listarMisRequerimientosComoDocente() {
+        return ResponseEntity.ok(requerimientoService.listarMisRequerimientosComoDocente());
+    }
+    
+    @GetMapping("/requerimientos-de-mis-visitas")
+    @PreAuthorize("hasRole('AUDITOR')")
+    public ResponseEntity<List<RequerimientoVisitaDTO>> listarRequerimientosDeMisVisitas() {
+        return ResponseEntity.ok(requerimientoService.listarRequerimientosDeMisVisitas());
+    }
+    
+    @PostMapping("/{id}/atender")
+    @PreAuthorize("hasRole('DOCENTE')")
+    public ResponseEntity<RequerimientoVisitaDTO> atenderRequerimiento(
+            @PathVariable Integer id,
+            @RequestBody String respuesta) {
+        return ResponseEntity.ok(requerimientoService.atenderRequerimientoComoDocente(id, respuesta));
+    }
 }

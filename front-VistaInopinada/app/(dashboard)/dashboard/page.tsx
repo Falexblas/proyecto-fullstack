@@ -1,21 +1,22 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { 
   ClipboardCheck, 
   Users, 
-  CheckCircle2, 
+  CheckCircle2,
   AlertTriangle,
-  TrendingUp,
   Calendar,
   Plus,
   FileText
 } from "lucide-react"
 import { RecentVisitsTable } from "@/components/dashboard/recent-visits-table"
-import { VisitsChart } from "@/components/dashboard/visits-chart"
 import { useAuth, ROLE_PERMISSIONS } from "@/lib/auth-context"
+import { dashboardService, DashboardAuditorStats } from "@/services/dashboard.service"
 import Link from "next/link"
+import { toast } from "sonner"
 
 // Stats para Admin y Evaluador
 const adminStats = [
@@ -95,7 +96,57 @@ export default function DashboardPage() {
   const isAdmin = user?.rol === "ADMIN"
   const isAuditor = user?.rol === "AUDITOR"
   
-  const stats = isDocente ? docenteStats : adminStats
+  const [auditorStats, setAuditorStats] = useState<DashboardAuditorStats | null>(null)
+  const [isLoading, setIsLoading] = useState(isAuditor)
+  
+  useEffect(() => {
+    if (isAuditor) {
+      cargarEstadisticasAuditor()
+    }
+  }, [isAuditor])
+  
+  async function cargarEstadisticasAuditor() {
+    try {
+      setIsLoading(true)
+      const stats = await dashboardService.getAuditorStats()
+      setAuditorStats(stats)
+    } catch (error) {
+      toast.error("Error al cargar estadísticas del dashboard")
+      console.error(error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+  
+  // Stats para Admin (estáticos por ahora)
+  const adminStatsDisplay = [
+    {
+      title: "Visitas Este Mes",
+      value: auditorStats?.visitasEsteMes.toString() || "0",
+      icon: ClipboardCheck,
+      description: "visitas registradas"
+    },
+    {
+      title: "Docentes Evaluados",
+      value: auditorStats?.docentesEvaluados.toString() || "0",
+      icon: Users,
+      description: "docentes únicos"
+    },
+    {
+      title: "Requerimientos Pendientes",
+      value: auditorStats?.requerimientosPendientes.toString() || "0",
+      icon: AlertTriangle,
+      description: "por atender"
+    },
+    {
+      title: "Visitas Recientes",
+      value: auditorStats?.visitasRecientes?.length.toString() || "0",
+      icon: Calendar,
+      description: "últimas registradas"
+    },
+  ]
+  
+  const stats = isDocente ? docenteStats : adminStatsDisplay
   const roleInfo = user ? ROLE_PERMISSIONS[user.rol] : null
 
   return (
@@ -114,8 +165,8 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* Quick Actions - Solo para Admin y Auditor */}
-        {(isAdmin || isAuditor) && (
+        {/* Quick Actions - Solo para Auditor */}
+        {isAuditor && (
           <div className="flex gap-2">
             <Button asChild>
               <Link href="/visitas/nueva">
@@ -146,21 +197,27 @@ export default function DashboardPage() {
               <stat.icon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              {stat.change && (
-                <div className="flex items-center gap-1 mt-1">
-                  <span className={
-                    stat.changeType === "positive" 
-                      ? "text-success text-xs font-medium" 
-                      : "text-destructive text-xs font-medium"
-                  }>
-                    {stat.change}
-                  </span>
-                  <span className="text-xs text-muted-foreground">{stat.description}</span>
-                </div>
-              )}
-              {!stat.change && (
-                <span className="text-xs text-muted-foreground">{stat.description}</span>
+              {isLoading && isAuditor ? (
+                <div className="h-8 bg-muted animate-pulse rounded w-16"></div>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{stat.value}</div>
+                  {(stat as any).change && (stat as any).changeType && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <span className={
+                        (stat as any).changeType === "positive" 
+                          ? "text-success text-xs font-medium" 
+                          : "text-destructive text-xs font-medium"
+                      }>
+                        {(stat as any).change}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{stat.description}</span>
+                    </div>
+                  )}
+                  {(!(stat as any).change || !(stat as any).changeType) && (
+                    <span className="text-xs text-muted-foreground">{stat.description}</span>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
@@ -169,26 +226,8 @@ export default function DashboardPage() {
 
       {/* Charts and Tables - Diferente segun rol */}
       <div className="grid gap-6 lg:grid-cols-7">
-        {/* Chart - Solo Admin y Auditor */}
-        {!isDocente && (
-          <Card className="lg:col-span-4">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                Visitas por Semana
-              </CardTitle>
-              <CardDescription>
-                Cantidad de visitas realizadas en las ultimas 8 semanas
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <VisitsChart />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Proximas Visitas / Mis Requerimientos */}
-        <Card className={isDocente ? "lg:col-span-7" : "lg:col-span-3"}>
+        {/* Proximas Visitas / Mis Requerimientos - Ahora ocupa todo el ancho */}
+        <Card className="lg:col-span-7">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               {isDocente ? <FileText className="h-5 w-5" /> : <Calendar className="h-5 w-5" />}
@@ -233,23 +272,36 @@ export default function DashboardPage() {
             ) : (
               // Proximas visitas para Admin/Auditor
               <>
-                {[
-                  { docente: "Maria Garcia", asignatura: "Matematicas I", fecha: "Hoy 10:00", sede: "Lima Centro" },
-                  { docente: "Carlos Lopez", asignatura: "Fisica II", fecha: "Hoy 14:30", sede: "Lima Norte" },
-                  { docente: "Ana Torres", asignatura: "Quimica General", fecha: "Manana 09:00", sede: "Lima Centro" },
-                ].map((visita, i) => (
-                  <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                    <div className="w-2 h-2 rounded-full bg-primary mt-2" />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{visita.docente}</p>
-                      <p className="text-xs text-muted-foreground truncate">{visita.asignatura}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs font-medium text-primary">{visita.fecha}</span>
-                        <span className="text-xs text-muted-foreground">- {visita.sede}</span>
+                {isLoading && isAuditor ? (
+                  // Loading skeleton
+                  [1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                      <div className="w-2 h-2 rounded-full bg-muted mt-2" />
+                      <div className="flex-1 min-w-0 space-y-2">
+                        <div className="h-4 bg-muted animate-pulse rounded w-3/4"></div>
+                        <div className="h-3 bg-muted animate-pulse rounded w-1/2"></div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                ) : auditorStats?.proximasVisitas && auditorStats.proximasVisitas.length > 0 ? (
+                  auditorStats.proximasVisitas.map((visita) => (
+                    <div key={visita.id} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                      <div className="w-2 h-2 rounded-full bg-primary mt-2" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{visita.docenteNombre}</p>
+                        <p className="text-xs text-muted-foreground truncate">{visita.asignaturaNombre}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs font-medium text-primary">{visita.fechaVisita} {visita.horaInicio}</span>
+                          <span className="text-xs text-muted-foreground">- {visita.sedeNombre}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No hay visitas programadas proximamente
+                  </p>
+                )}
               </>
             )}
           </CardContent>

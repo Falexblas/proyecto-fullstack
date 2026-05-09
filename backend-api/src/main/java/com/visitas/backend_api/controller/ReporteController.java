@@ -32,22 +32,10 @@ public class ReporteController {
         return ResponseEntity.ok(reporteService.obtenerEstadisticas(periodo));
     }
 
-    @GetMapping("/cumplimiento-por-area")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<CumplimientoAreaDTO>> obtenerCumplimientoPorArea() {
-        return ResponseEntity.ok(reporteService.obtenerCumplimientoPorArea());
-    }
-
     @GetMapping("/visitas-por-sede")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<VisitasPorSedeDTO>> obtenerVisitasPorSede() {
         return ResponseEntity.ok(reporteService.obtenerVisitasPorSede());
-    }
-
-    @GetMapping("/evolucion-cumplimiento")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<EvolucionCumplimientoDTO>> obtenerEvolucionCumplimiento() {
-        return ResponseEntity.ok(reporteService.obtenerEvolucionCumplimiento());
     }
 
     @GetMapping("/top-docentes")

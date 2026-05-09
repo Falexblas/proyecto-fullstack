@@ -53,4 +53,16 @@ public class UsuarioController {
         usuarioService.eliminar(id);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/mi-firma")
+    public ResponseEntity<String> obtenerMiFirma() {
+        String firma = usuarioService.obtenerMiFirma();
+        return ResponseEntity.ok(firma != null ? firma : "");
+    }
+
+    @PostMapping("/mi-firma")
+    public ResponseEntity<String> guardarMiFirma(@RequestBody String firmaHash) {
+        String mensaje = usuarioService.guardarMiFirma(firmaHash);
+        return ResponseEntity.ok(mensaje);
+    }
 }

@@ -1,6 +1,5 @@
 package com.visitas.backend_api.dto;
 
-import com.visitas.backend_api.enums.Rol;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

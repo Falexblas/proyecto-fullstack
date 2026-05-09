@@ -27,6 +27,7 @@ public class UsuarioService {
     private final DocenteEntityRepository docenteRepository;
     private final ResponsableVisitaEntityRepository responsableRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuthService authService;
 
     public List<UsuarioDTO> listarTodos() {
         return usuarioRepository.findAll().stream()
@@ -149,5 +150,18 @@ public class UsuarioService {
 
         dto.setCreatedAt(entity.getCreatedAt());
         return dto;
+    }
+
+    @Transactional
+    public String guardarMiFirma(String firmaHash) {
+        UsuarioSistemaEntity usuario = authService.getCurrentUser();
+        usuario.setFirmaHash(firmaHash);
+        usuarioRepository.save(usuario);
+        return "Firma guardada exitosamente";
+    }
+
+    public String obtenerMiFirma() {
+        UsuarioSistemaEntity usuario = authService.getCurrentUser();
+        return usuario.getFirmaHash();
     }
 }

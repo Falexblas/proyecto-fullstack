@@ -11,6 +11,7 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.font.PDFont;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.apache.poi.ss.usermodel.*;
@@ -36,11 +37,10 @@ public class ReporteService {
     public ReporteDataDTO obtenerReporteCompleto(String periodo) {
         ReporteDataDTO reporte = new ReporteDataDTO();
         reporte.setEstadisticas(obtenerEstadisticas(periodo));
-        reporte.setCumplimientoPorArea(obtenerCumplimientoPorArea());
         reporte.setVisitasPorSede(obtenerVisitasPorSede());
-        reporte.setEvolucionCumplimiento(obtenerEvolucionCumplimiento());
         reporte.setTopDocentes(obtenerTopDocentes());
         reporte.setRequerimientosPendientes(obtenerRequerimientosPendientes());
+        // CumplimientoPorArea y EvolucionCumplimiento eliminados - requieren lógica compleja de evaluaciones
         return reporte;
     }
 
@@ -130,19 +130,6 @@ public class ReporteService {
         return stats;
     }
 
-    public List<CumplimientoAreaDTO> obtenerCumplimientoPorArea() {
-        List<CumplimientoAreaDTO> resultado = new ArrayList<>();
-        
-        // Simulación basada en evaluaciones
-        resultado.add(new CumplimientoAreaDTO("Control Docente", 85.0));
-        resultado.add(new CumplimientoAreaDTO("Material Virtual", 78.0));
-        resultado.add(new CumplimientoAreaDTO("Asistencia", 92.0));
-        resultado.add(new CumplimientoAreaDTO("Avance Silábico", 88.0));
-        resultado.add(new CumplimientoAreaDTO("Guía Práctica", 80.0));
-        
-        return resultado;
-    }
-
     public List<VisitasPorSedeDTO> obtenerVisitasPorSede() {
         List<VisitaInopinadaEntity> todasLasVisitas = visitaRepository.findAll();
         
@@ -163,20 +150,6 @@ public class ReporteService {
             dto.setPorcentaje(totalVisitas > 0 ? Math.round((cantidad * 100.0 / totalVisitas) * 100.0) / 100.0 : 0.0);
             resultado.add(dto);
         });
-        
-        return resultado;
-    }
-
-    public List<EvolucionCumplimientoDTO> obtenerEvolucionCumplimiento() {
-        List<EvolucionCumplimientoDTO> resultado = new ArrayList<>();
-        
-        // Datos simulados de evolución mensual
-        resultado.add(new EvolucionCumplimientoDTO("Ene", 78.0));
-        resultado.add(new EvolucionCumplimientoDTO("Feb", 82.0));
-        resultado.add(new EvolucionCumplimientoDTO("Mar", 79.0));
-        resultado.add(new EvolucionCumplimientoDTO("Abr", 85.0));
-        resultado.add(new EvolucionCumplimientoDTO("May", 88.0));
-        resultado.add(new EvolucionCumplimientoDTO("Jun", 87.0));
         
         return resultado;
     }

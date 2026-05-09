@@ -51,6 +51,9 @@ public class UsuarioSistemaEntity {
     @Column(name = "estado")
     private Boolean estado = true;
 
+    @Column(name = "firma_hash", length = 500)
+    private String firmaHash;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 }

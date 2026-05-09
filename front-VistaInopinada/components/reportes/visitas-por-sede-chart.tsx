@@ -9,13 +9,16 @@ export interface VisitasPorSedeChartData {
   color?: string
 }
 
-const defaultData: VisitasPorSedeChartData[] = [
-  { sede: "Lima Centro", cantidad: 68, porcentaje: 44, color: "hsl(var(--chart-1))" },
-  { sede: "Lima Norte", cantidad: 52, porcentaje: 33, color: "hsl(var(--chart-2))" },
-  { sede: "Lima Sur", cantidad: 36, porcentaje: 23, color: "hsl(var(--chart-3))" },
-]
+export function VisitasPorSedeChart({ data }: { data?: VisitasPorSedeChartData[] }) {
+  // Si no hay datos, mostrar mensaje
+  if (!data || data.length === 0) {
+    return (
+      <div className="h-[300px] w-full flex items-center justify-center">
+        <p className="text-muted-foreground text-sm">No hay datos de visitas por sede</p>
+      </div>
+    )
+  }
 
-export function VisitasPorSedeChart({ data = defaultData }: { data?: VisitasPorSedeChartData[] }) {
   const enrichedData = data.map((item, index) => ({
     ...item,
     color: item.color || [`hsl(var(--chart-1))`, `hsl(var(--chart-2))`, `hsl(var(--chart-3))`][index % 3],

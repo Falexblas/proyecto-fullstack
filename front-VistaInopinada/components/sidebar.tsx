@@ -19,6 +19,7 @@ import {
   Shield,
   AlertCircle,
   LogOut,
+  User,
 } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -41,7 +42,7 @@ const navigation: NavItem[] = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ["ADMIN", "AUDITOR", "DOCENTE"] },
   { name: "Visitas", href: "/visitas", icon: ClipboardCheck, roles: ["ADMIN", "AUDITOR", "DOCENTE"] },
   { name: "Requerimientos", href: "/requerimientos", icon: AlertCircle, roles: ["ADMIN", "AUDITOR", "DOCENTE"] },
-  { name: "Docentes", href: "/docentes", icon: Users, roles: ["ADMIN", "AUDITOR"] },
+  { name: "Docentes", href: "/docentes", icon: Users, roles: ["AUDITOR"] },
   { name: "Responsables", href: "/responsables", icon: UserCheck, roles: ["ADMIN"] },
   { name: "Asignaturas", href: "/asignaturas", icon: BookOpen, roles: ["ADMIN"] },
   { name: "Sedes", href: "/sedes", icon: Building2, roles: ["ADMIN"] },
@@ -204,6 +205,13 @@ export function Sidebar() {
                 <p className="text-sm font-medium">{user?.nombre} {user?.apellido}</p>
                 <p className="text-xs text-muted-foreground">{user?.email}</p>
               </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/perfil" className="cursor-pointer">
+                  <User className="mr-2 h-4 w-4" />
+                  Mi Perfil
+                </Link>
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
                 <LogOut className="mr-2 h-4 w-4" />

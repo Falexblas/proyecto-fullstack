@@ -40,6 +40,10 @@ export function VisitasTable({ showOnlyMine = false }: VisitasTableProps) {
   const [visitas, setVisitas] = useState<Visita[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  
+  const isAdmin = user?.rol === "ADMIN"
+  const isAuditor = user?.rol === "AUDITOR"
+  const canEdit = isAuditor // Solo auditor puede editar
 
   useEffect(() => {
     async function fetchVisitas() {
@@ -193,12 +197,14 @@ export function VisitasTable({ showOnlyMine = false }: VisitasTableProps) {
                           Ver detalle
                         </Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href={`/visitas/${visita.id}/editar`}>
-                          <Edit className="h-4 w-4 mr-2" />
-                          Editar
-                        </Link>
-                      </DropdownMenuItem>
+                      {canEdit && (
+                        <DropdownMenuItem asChild>
+                          <Link href={`/visitas/${visita.id}/editar`}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Editar
+                          </Link>
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem>
                         <FileText className="h-4 w-4 mr-2" />
                         Generar PDF

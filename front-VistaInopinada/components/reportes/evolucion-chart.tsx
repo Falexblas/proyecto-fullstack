@@ -7,16 +7,15 @@ export interface EvolucionChartData {
   cumplimiento: number
 }
 
-const defaultData: EvolucionChartData[] = [
-  { mes: "Ene", cumplimiento: 78 },
-  { mes: "Feb", cumplimiento: 82 },
-  { mes: "Mar", cumplimiento: 79 },
-  { mes: "Abr", cumplimiento: 85 },
-  { mes: "May", cumplimiento: 88 },
-  { mes: "Jun", cumplimiento: 87 },
-]
-
-export function EvolucionChart({ data = defaultData }: { data?: EvolucionChartData[] }) {
+export function EvolucionChart({ data }: { data?: EvolucionChartData[] }) {
+  // Si no hay datos, mostrar mensaje
+  if (!data || data.length === 0) {
+    return (
+      <div className="h-[300px] w-full flex items-center justify-center">
+        <p className="text-muted-foreground text-sm">No hay datos de evolución disponibles</p>
+      </div>
+    )
+  }
   return (
     <div className="h-[300px] w-full">
       <ResponsiveContainer width="100%" height="100%">

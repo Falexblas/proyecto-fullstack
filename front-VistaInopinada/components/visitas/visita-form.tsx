@@ -29,14 +29,16 @@ import {
   Save,
   Send,
   Eraser,
-  PenTool
+  PenTool,
+  Plus,
+  Trash2
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { docentesService, type Docente } from "@/services/docentes.service"
 import { sedesService, type Sede } from "@/services/sedes.service"
 import { asignaturasService, type Asignatura } from "@/services/asignaturas.service"
-import { responsablesService, type Responsable } from "@/services/responsables.service"
 import { visitasService } from "@/services/visitas.service"
+import { useAuth } from "@/lib/auth-context"
 import { toast } from "sonner"
 
 // Componente de evaluacion con opciones SI/NO o CUMPLE/NO CUMPLE
@@ -272,7 +274,7 @@ export function VisitaForm() {
     
     // Responsable y Requerimientos
     responsable: "",
-    requerimientos: "",
+    requerimientos: [{ id: 1, descripcion: "" }],
     
     // Firmas digitales
     firmaDocente: "",
@@ -283,11 +285,35 @@ export function VisitaForm() {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
+  // Funciones para manejar requerimientos dinámicos
+  const addRequerimiento = () => {
+    setFormData(prev => ({
+      ...prev,
+      requerimientos: [...prev.requerimientos, { id: Date.now(), descripcion: "" }]
+    }))
+  }
+
+  const removeRequerimiento = (id: number) => {
+    setFormData(prev => ({
+      ...prev,
+      requerimientos: prev.requerimientos.filter(r => r.id !== id)
+    }))
+  }
+
+  const updateRequerimiento = (id: number, descripcion: string) => {
+    setFormData(prev => ({
+      ...prev,
+      requerimientos: prev.requerimientos.map(r => 
+        r.id === id ? { ...r, descripcion } : r
+      )
+    }))
+  }
+
   const router = useRouter()
+  const { user } = useAuth()
   const [sedes, setSedes] = useState<Sede[]>([])
   const [docentes, setDocentes] = useState<Docente[]>([])
   const [asignaturas, setAsignaturas] = useState<Asignatura[]>([])
-  const [responsables, setResponsables] = useState<Responsable[]>([])
   const [isLoadingData, setIsLoadingData] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -295,16 +321,14 @@ export function VisitaForm() {
     async function fetchData() {
       try {
         setIsLoadingData(true)
-        const [s, d, a, r] = await Promise.all([
+        const [s, d, a] = await Promise.all([
           sedesService.getAll(),
           docentesService.getActivos(),
           asignaturasService.getAll(),
-          responsablesService.getActivos(),
         ])
         setSedes(s)
         setDocentes(d)
         setAsignaturas(a)
-        setResponsables(r)
       } catch {
         toast.error("Error al cargar datos del formulario")
       } finally {
@@ -320,13 +344,18 @@ export function VisitaForm() {
       const idSede = parseInt(formData.sede)
       const idDocente = parseInt(formData.docente)
       const idAsignatura = parseInt(formData.asignatura)
-      const idResponsable = parseInt(formData.responsable)
+      const idResponsable = user?.responsableId || user?.id
 
-      if (!formData.fecha || !formData.horaInicio || !formData.horaTermino || isNaN(idSede) || isNaN(idDocente) || isNaN(idAsignatura) || isNaN(idResponsable)) {
-        toast.error("Complete todos los campos obligatorios: fecha, horas, sede, docente, asignatura y responsable")
+      if (!formData.fecha || !formData.horaInicio || !formData.horaTermino || isNaN(idSede) || isNaN(idDocente) || isNaN(idAsignatura) || !idResponsable) {
+        toast.error("Complete todos los campos obligatorios: fecha, horas, sede, docente y asignatura")
         setIsSubmitting(false)
         return
       }
+
+      // Filtrar solo requerimientos con descripción
+      const requerimientosValidos = formData.requerimientos
+        .filter(r => r.descripcion.trim().length > 0)
+        .map(r => ({ descripcion: r.descripcion.trim() }))
 
       const payload = {
         fechaVisita: formData.fecha,
@@ -339,6 +368,7 @@ export function VisitaForm() {
         idDocente,
         idAsignatura,
         idResponsable,
+        requerimientos: requerimientosValidos.length > 0 ? requerimientosValidos : undefined,
       }
       await visitasService.create(payload)
       toast.success("Visita registrada exitosamente")
@@ -354,7 +384,7 @@ export function VisitaForm() {
     { number: 1, title: "Datos Generales", icon: Building2 },
     { number: 2, title: "Evaluaciones", icon: ClipboardCheck },
     { number: 3, title: "Observaciones", icon: FileText },
-    { number: 4, title: "Firmas y Envio", icon: Send },
+    { number: 4, title: "Resumen", icon: Send },
   ]
 
   const cumpleOptions = [
@@ -1029,16 +1059,11 @@ export function VisitaForm() {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-4">
-              <Select value={formData.responsable} onValueChange={(v) => updateField("responsable", v)} disabled={isLoadingData}>
-                <SelectTrigger>
-                  <SelectValue placeholder={isLoadingData ? "Cargando..." : "Seleccionar responsable"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {responsables.map((r) => (
-                    <SelectItem key={r.id} value={String(r.id)}>{r.nombres} {r.apellidos}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <Label className="text-sm text-muted-foreground">Responsable (Auditor):</Label>
+                <p className="font-medium">{user?.nombre} {user?.apellido}</p>
+                <p className="text-sm text-muted-foreground">{user?.email}</p>
+              </div>
             </CardContent>
           </Card>
 
@@ -1049,55 +1074,62 @@ export function VisitaForm() {
                 Requerimientos Solicitados en la Visita Inopinada
               </CardTitle>
               <CardDescription>
-                Registre los requerimientos de mejora o acciones correctivas identificadas
+                Registre los requerimientos de mejora o acciones correctivas identificadas. Puede agregar varios requerimientos.
               </CardDescription>
             </CardHeader>
-            <CardContent className="pt-4">
-              <Textarea
-                placeholder="Describa los requerimientos solicitados durante la visita..."
-                value={formData.requerimientos}
-                onChange={(e) => updateField("requerimientos", e.target.value)}
-                className="min-h-[150px]"
-              />
+            <CardContent className="pt-4 space-y-3">
+              {formData.requerimientos.map((req, index) => (
+                <div key={req.id} className="flex gap-2 items-start">
+                  <div className="flex-1">
+                    <Label className="text-xs text-muted-foreground mb-1">
+                      Requerimiento {index + 1}
+                    </Label>
+                    <Textarea
+                      placeholder={`Describa el requerimiento ${index + 1}...`}
+                      value={req.descripcion}
+                      onChange={(e) => updateRequerimiento(req.id, e.target.value)}
+                      className="min-h-[60px] resize-none"
+                    />
+                  </div>
+                  {formData.requerimientos.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="mt-5 text-red-600 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => removeRequerimiento(req.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+              
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={addRequerimiento}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Agregar otro requerimiento
+              </Button>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Step 4: Firmas y Envio */}
+      {/* Step 4: Resumen y Envio */}
       {step === 4 && (
         <div className="space-y-6">
           <Card>
             <CardHeader className="bg-primary/5 border-b">
               <CardTitle className="flex items-center gap-2">
-                <PenTool className="h-5 w-5" />
-                Firmas Digitales
+                <Send className="h-5 w-5" />
+                Resumen de la Visita
               </CardTitle>
               <CardDescription>
-                Ambas partes deben firmar digitalmente para validar el registro
+                Revise los datos antes de crear la visita. Las firmas se registrarán posteriormente.
               </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-6 space-y-8">
-              {/* Firma Docente */}
-              <SignaturePad
-                label="Firma del Docente"
-                value={formData.firmaDocente}
-                onChange={(v) => updateField("firmaDocente", v)}
-              />
-
-              {/* Firma Responsable */}
-              <SignaturePad
-                label="Firma del Responsable de la Visita"
-                value={formData.firmaResponsable}
-                onChange={(v) => updateField("firmaResponsable", v)}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Resumen */}
-          <Card>
-            <CardHeader className="bg-primary/5 border-b">
-              <CardTitle>Resumen de la Visita</CardTitle>
             </CardHeader>
             <CardContent className="pt-4">
               <div className="grid gap-3 text-sm">
@@ -1126,33 +1158,33 @@ export function VisitaForm() {
                   <span className="font-medium">{formData.horaInicio || "-"} - {formData.horaTermino || "-"}</span>
                 </div>
                 <div className="flex justify-between py-2">
-                  <span className="text-muted-foreground">Responsable:</span>
-                  <span className="font-medium">{formData.responsable || "-"}</span>
+                  <span className="text-muted-foreground">Responsable (Auditor):</span>
+                  <span className="font-medium">{user?.nombre} {user?.apellido}</span>
                 </div>
+              </div>
+
+              <div className="mt-6 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <p className="text-sm text-blue-800">
+                  <strong>Flujo de Firmas:</strong><br />
+                  1. La visita se creará como <strong>Borrador</strong><br />
+                  2. El docente revisará y firmará<br />
+                  3. Usted firmará para completar el proceso
+                </p>
               </div>
             </CardContent>
           </Card>
 
           {/* Acciones finales */}
           <div className="flex flex-col sm:flex-row gap-3">
-            <Button variant="outline" className="flex-1" disabled={isSubmitting}>
-              <Save className="h-4 w-4 mr-2" />
-              Guardar Borrador
-            </Button>
             <Button 
               className="flex-1" 
-              disabled={!formData.firmaDocente || !formData.firmaResponsable || isSubmitting}
+              disabled={isSubmitting}
               onClick={handleSubmit}
             >
               <Send className="h-4 w-4 mr-2" />
-              {isSubmitting ? "Enviando..." : "Enviar Registro"}
+              {isSubmitting ? "Creando..." : "Crear Visita"}
             </Button>
           </div>
-          {(!formData.firmaDocente || !formData.firmaResponsable) && (
-            <p className="text-sm text-muted-foreground text-center">
-              Se requieren ambas firmas para enviar el registro
-            </p>
-          )}
         </div>
       )}
 

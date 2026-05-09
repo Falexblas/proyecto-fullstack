@@ -9,8 +9,10 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AlertTriangle, ArrowLeft, Calendar, CheckCircle2, Clock, FileText, MapPin, PenTool, User } from "lucide-react"
 import { visitasService, type Visita } from "@/services/visitas.service"
+import { usuarioService } from "@/services/usuario.service"
 import { useAuth } from "@/lib/auth-context"
 import { toast } from "sonner"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 
 const estadoConfig: Record<string, { label: string; className: string }> = {
   BORRADOR: { label: "Borrador", className: "bg-muted text-muted-foreground" },
@@ -27,6 +29,9 @@ export default function VisitaDetallePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isSigning, setIsSigning] = useState(false)
+  const [showFirmaModal, setShowFirmaModal] = useState(false)
+  const [firmaGuardada, setFirmaGuardada] = useState<string | null>(null)
+  const [isLoadingFirma, setIsLoadingFirma] = useState(false)
 
   const id = Number(params.id)
 
@@ -56,10 +61,31 @@ export default function VisitaDetallePage() {
 
   async function handleFirmaDocente() {
     try {
+      setIsLoadingFirma(true)
+      // Verificar si tiene firma guardada
+      const firma = await usuarioService.getMiFirma()
+      if (firma && firma.trim() !== "") {
+        // Usar firma guardada
+        setFirmaGuardada(firma)
+        setShowFirmaModal(true)
+      } else {
+        // No tiene firma, mostrar modal para crearla
+        setFirmaGuardada(null)
+        setShowFirmaModal(true)
+      }
+    } catch {
+      toast.error("Error al verificar firma guardada")
+    } finally {
+      setIsLoadingFirma(false)
+    }
+  }
+
+  async function confirmarFirmaConFirmaGuardada() {
+    if (!firmaGuardada) return
+    try {
       setIsSigning(true)
-      // Firma simple: hash generado localmente
-      const firmaHash = `firma-docente-${visita!.id}-${Date.now()}`
-      await visitasService.firmarDocente(visita!.id, firmaHash)
+      setShowFirmaModal(false)
+      await visitasService.firmarDocente(visita!.id, firmaGuardada)
       toast.success("Visita firmada correctamente como docente")
       const updated = await visitasService.getById(visita!.id)
       setVisita(updated)
@@ -72,9 +98,29 @@ export default function VisitaDetallePage() {
 
   async function handleFirmaAuditor() {
     try {
+      setIsLoadingFirma(true)
+      // Verificar si tiene firma guardada
+      const firma = await usuarioService.getMiFirma()
+      if (firma && firma.trim() !== "") {
+        setFirmaGuardada(firma)
+        setShowFirmaModal(true)
+      } else {
+        setFirmaGuardada(null)
+        setShowFirmaModal(true)
+      }
+    } catch {
+      toast.error("Error al verificar firma guardada")
+    } finally {
+      setIsLoadingFirma(false)
+    }
+  }
+
+  async function confirmarFirmaAuditorConFirmaGuardada() {
+    if (!firmaGuardada) return
+    try {
       setIsSigning(true)
-      const firmaHash = `firma-auditor-${visita!.id}-${Date.now()}`
-      await visitasService.firmarAuditor(visita!.id, firmaHash)
+      setShowFirmaModal(false)
+      await visitasService.firmarAuditor(visita!.id, firmaGuardada)
       toast.success("Visita firmada correctamente como auditor")
       const updated = await visitasService.getById(visita!.id)
       setVisita(updated)
@@ -281,6 +327,45 @@ export default function VisitaDetallePage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Modal de Firma */}
+      <Dialog open={showFirmaModal} onOpenChange={setShowFirmaModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Firmar Visita</DialogTitle>
+            <DialogDescription>
+              {firmaGuardada 
+                ? "¿Deseas usar tu firma guardada para firmar esta visita?" 
+                : "No tienes una firma guardada. Por favor, configura tu firma en tu perfil primero."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 mt-4">
+            {firmaGuardada && (
+              <div className="p-4 bg-muted rounded-lg">
+                <p className="text-sm text-muted-foreground mb-2">Tu firma guardada:</p>
+                <img src={firmaGuardada} alt="Firma guardada" className="max-h-24 border rounded" />
+              </div>
+            )}
+            <div className="flex gap-3 justify-end">
+              <Button variant="outline" onClick={() => setShowFirmaModal(false)}>
+                Cancelar
+              </Button>
+              {firmaGuardada ? (
+                <Button 
+                  onClick={user?.rol === "DOCENTE" ? confirmarFirmaConFirmaGuardada : confirmarFirmaAuditorConFirmaGuardada}
+                  disabled={isSigning}
+                >
+                  {isSigning ? "Firmando..." : "Confirmar Firma"}
+                </Button>
+              ) : (
+                <Button onClick={() => router.push("/perfil")}>
+                  Ir a Perfil para Configurar Firma
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

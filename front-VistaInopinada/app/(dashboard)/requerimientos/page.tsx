@@ -31,18 +31,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { useToast } from "@/hooks/use-toast"
 import { requerimientosService, type RequerimientoVisita } from "@/services/requerimientos.service"
 import {
   AlertCircle,
   Search,
-  MoreHorizontal,
   Eye,
   CheckCircle2,
   Clock,
@@ -50,6 +43,8 @@ import {
   MessageSquare,
   FileText,
   Filter,
+  Upload,
+  FileCheck,
 } from "lucide-react"
 
 const estadoConfig = {
@@ -82,7 +77,7 @@ export default function RequerimientosPage() {
   const { user } = useAuth()
   const { toast } = useToast()
   const isDocente = user?.rol === "DOCENTE"
-  const canRespond = user?.rol === "ADMIN" || user?.rol === "AUDITOR"
+  const canRespond = isDocente // Solo docente puede responder/attender requerimientos
 
   const [requerimientos, setRequerimientos] = useState<RequerimientoVisita[]>([])
   const [loading, setLoading] = useState(true)
@@ -99,7 +94,14 @@ export default function RequerimientosPage() {
   const cargarRequerimientos = async () => {
     try {
       setLoading(true)
-      const data = await requerimientosService.listAll()
+      let data: RequerimientoVisita[]
+      if (isDocente) {
+        data = await requerimientosService.listMisRequerimientos()
+      } else if (user?.rol === "AUDITOR") {
+        data = await requerimientosService.listRequerimientosDeMisVisitas()
+      } else {
+        data = await requerimientosService.listAll()
+      }
       setRequerimientos(data)
     } catch (error) {
       console.error("Error al cargar requerimientos:", error)
@@ -113,19 +115,10 @@ export default function RequerimientosPage() {
     }
   }
 
-  const isResponderDisabled = !nuevoEstado || !respuesta.trim()
+  const isResponderDisabled = !respuesta.trim()
 
   const handleResponder = async () => {
     if (!selectedReq) return
-
-    if (!nuevoEstado) {
-      toast({
-        title: "Error",
-        description: "Selecciona un estado para el requerimiento",
-        variant: "destructive",
-      })
-      return
-    }
 
     if (!respuesta.trim()) {
       toast({
@@ -137,11 +130,18 @@ export default function RequerimientosPage() {
     }
 
     try {
-      await requerimientosService.update(selectedReq.id, {
-        estado: nuevoEstado.toUpperCase(),
-        respuesta: respuesta.trim(),
-        fechaRespuesta: new Date().toISOString().split("T")[0],
-      })
+      if (isDocente) {
+        // Docente atiende el requerimiento
+        await requerimientosService.atender(selectedReq.id, respuesta.trim())
+      } else {
+        // Admin/Auditor ya no pueden modificar requerimientos
+        toast({
+          title: "No permitido",
+          description: "Solo el docente puede atender requerimientos",
+          variant: "destructive",
+        })
+        return
+      }
 
       toast({
         title: "Éxito",
@@ -167,15 +167,7 @@ export default function RequerimientosPage() {
     setNuevoEstado(req.estado?.toLowerCase() || "pendiente")
   }
 
-  const fullDocenteName = user ? `${user.nombre} ${user.apellido}` : ""
-
-  const baseData = isDocente
-    ? requerimientos.filter((req) =>
-        req.nombreDocente?.toLowerCase() === fullDocenteName.toLowerCase()
-      )
-    : requerimientos
-
-  const filteredRequerimientos = baseData.filter((req) => {
+  const filteredRequerimientos = requerimientos.filter((req) => {
     const matchSearch =
       req.descripcion.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (req.nombreDocente ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -187,11 +179,11 @@ export default function RequerimientosPage() {
   })
 
   const stats = {
-    total: baseData.length,
-    pendientes: baseData.filter((r) => r.estado?.toLowerCase() === "pendiente").length,
-    enProceso: baseData.filter((r) => r.estado?.toLowerCase() === "en_proceso").length,
-    atendidos: baseData.filter((r) => r.estado?.toLowerCase() === "atendido").length,
-    rechazados: baseData.filter((r) => r.estado?.toLowerCase() === "rechazado").length,
+    total: requerimientos.length,
+    pendientes: requerimientos.filter((r: RequerimientoVisita) => r.estado?.toLowerCase() === "pendiente").length,
+    enProceso: requerimientos.filter((r: RequerimientoVisita) => r.estado?.toLowerCase() === "en_proceso").length,
+    atendidos: requerimientos.filter((r: RequerimientoVisita) => r.estado?.toLowerCase() === "atendido").length,
+    rechazados: requerimientos.filter((r: RequerimientoVisita) => r.estado?.toLowerCase() === "rechazado").length,
   }
 
   return (
@@ -301,64 +293,57 @@ export default function RequerimientosPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12">#</TableHead>
-                  <TableHead>Descripcion</TableHead>
-                  <TableHead>Visita / Docente</TableHead>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="w-12"></TableHead>
+                  <TableHead className="w-[45%]">Descripcion</TableHead>
+                  <TableHead className="w-[25%]">Asignatura</TableHead>
+                  <TableHead className="w-20 text-center">Fecha</TableHead>
+                  <TableHead className="w-24 text-center">Estado</TableHead>
+                  <TableHead className="w-24 text-center">Accion</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredRequerimientos.map((req) => {
+                {filteredRequerimientos
+                .sort((a, b) => new Date(b.fechaSolicitud || 0).getTime() - new Date(a.fechaSolicitud || 0).getTime())
+                .map((req) => {
                   const estadoKey = normalizeEstado(req.estado)
                   const config = estadoConfig[estadoKey] || estadoConfig.pendiente
                   const EstadoIcon = config.icon
+                  const isPendiente = req.estado?.toLowerCase() === "pendiente" || req.estado?.toLowerCase() === "en_proceso"
 
                   return (
-                    <TableRow key={req.id}>
-                      <TableCell className="font-mono text-sm">{req.id}</TableCell>
+                    <TableRow key={req.id} className="hover:bg-muted/50">
                       <TableCell>
-                        <p className="line-clamp-2 text-sm">{req.descripcion}</p>
+                        <p className="text-sm leading-snug" title={req.descripcion}>
+                          {req.descripcion.length > 90 
+                            ? req.descripcion.substring(0, 90) + "..." 
+                            : req.descripcion}
+                        </p>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          <p className="font-medium">{req.nombreDocente}</p>
-                          <p className="text-muted-foreground">{req.nombreAsignatura}</p>
-                          <p className="text-xs text-muted-foreground">{req.nombreSede}</p>
+                          <p className="font-medium truncate" title={req.nombreAsignatura || ""}>{req.nombreAsignatura}</p>
+                          <p className="text-xs text-muted-foreground truncate">{req.nombreSede}</p>
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
+                      <TableCell className="text-xs text-muted-foreground text-center whitespace-nowrap">
                         {req.fechaSolicitud
-                          ? new Date(req.fechaSolicitud).toLocaleDateString("es-PE")
+                          ? new Date(req.fechaSolicitud).toLocaleDateString("es-PE", { day: '2-digit', month: '2-digit', year: '2-digit' })
                           : "-"}
                       </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className={config.color}>
+                      <TableCell className="text-center">
+                        <Badge variant="secondary" className={`${config.color} text-xs px-2 py-0.5`}>
                           <EstadoIcon className="h-3 w-3 mr-1" />
                           {config.label}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleOpenRequerimiento(req)}>
-                              <Eye className="h-4 w-4 mr-2" />
-                              Ver detalle
-                            </DropdownMenuItem>
-                            {canRespond && (
-                              <DropdownMenuItem onClick={() => handleOpenRequerimiento(req)}>
-                                <MessageSquare className="h-4 w-4 mr-2" />
-                                Responder
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                      <TableCell className="text-center">
+                        <Button 
+                          variant={canRespond && isPendiente ? "default" : "ghost"}
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => handleOpenRequerimiento(req)}
+                        >
+                          {canRespond && isPendiente ? "Atender" : "Ver"}
+                        </Button>
                       </TableCell>
                     </TableRow>
                   )
@@ -432,40 +417,61 @@ export default function RequerimientosPage() {
                 </div>
               )}
 
-              {canRespond && (
-                <div className="space-y-3 border-t pt-4">
-                  <Label>Actualizar estado y respuesta:</Label>
-                  <Select value={nuevoEstado} onValueChange={setNuevoEstado}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar nuevo estado" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pendiente">Pendiente</SelectItem>
-                      <SelectItem value="en_proceso">En Proceso</SelectItem>
-                      <SelectItem value="atendido">Atendido</SelectItem>
-                      <SelectItem value="rechazado">Rechazado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Textarea
-                    placeholder="Escriba la respuesta o comentario..."
-                    value={respuesta}
-                    onChange={(e) => setRespuesta(e.target.value)}
-                    rows={3}
-                  />
+              {canRespond && selectedReq?.estado?.toLowerCase() !== "atendido" && (
+                <div className="space-y-4 border-t pt-4">
+                  <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                    <h4 className="font-medium text-blue-900 flex items-center gap-2">
+                      <FileCheck className="h-4 w-4" />
+                      Atender Requerimiento
+                    </h4>
+                    <p className="text-sm text-blue-700 mt-1">
+                      Para atender este requerimiento, describe las acciones realizadas y adjunta la evidencia correspondiente (archivos, fotos, enlaces).
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="respuesta">Descripción de acciones tomadas:</Label>
+                    <Textarea
+                      id="respuesta"
+                      placeholder="Ej: Actualicé la guía de práctica N°3 con los ejercicios de normalización BCNF y subí el archivo al aula virtual..."
+                      value={respuesta}
+                      onChange={(e) => setRespuesta(e.target.value)}
+                      rows={4}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Evidencia adjunta:</Label>
+                    <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center hover:bg-muted/50 transition-colors cursor-pointer">
+                      <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                      <p className="text-sm text-muted-foreground">
+                        Arrastra archivos aquí o haz clic para seleccionar
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        PDF, imágenes, documentos (máx. 10MB)
+                      </p>
+                    </div>
+                  </div>
+                  
                   {!respuesta.trim() && (
-                    <p className="text-sm text-red-600">Por favor completa el campo de respuesta antes de guardar.</p>
+                    <p className="text-sm text-red-600">Debes describir las acciones tomadas antes de atender el requerimiento.</p>
                   )}
                 </div>
               )}
             </div>
           )}
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setSelectedReq(null)}>
-              Cancelar
+              Cerrar
             </Button>
-            {canRespond && (
-              <Button disabled={isResponderDisabled} onClick={handleResponder}>
-                Guardar Respuesta
+            {canRespond && selectedReq?.estado?.toLowerCase() !== "atendido" && (
+              <Button 
+                disabled={isResponderDisabled} 
+                onClick={handleResponder}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+                Marcar como Atendido
               </Button>
             )}
           </DialogFooter>
