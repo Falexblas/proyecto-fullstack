@@ -154,6 +154,7 @@ CREATE TABLE EvaluacionAvanceSilabico (
     tema_coincide_visita BOOLEAN DEFAULT FALSE,
     tema_coincide_anterior BOOLEAN DEFAULT FALSE,
     ingreso_aula_virtual BOOLEAN DEFAULT FALSE,
+    cumple BOOLEAN GENERATED ALWAYS AS (tema_coincide_visita AND tema_coincide_anterior AND ingreso_aula_virtual) STORED,
     observaciones TEXT,
     FOREIGN KEY (id_visita) REFERENCES VisitaInopinada(id_visita) ON DELETE CASCADE
 );
@@ -191,7 +192,7 @@ CREATE TABLE EvidenciaRequerimiento (
     id_evidencia INT AUTO_INCREMENT PRIMARY KEY,
     id_requerimiento INT NOT NULL,
     nombre_archivo VARCHAR(255) NOT NULL,
-    tipo_archivo VARCHAR(50) NOT NULL,
+    tipo_archivo VARCHAR(100) NOT NULL,
     ruta_archivo VARCHAR(500) NOT NULL,
     tamaño_bytes BIGINT DEFAULT 0,
     descripcion TEXT,
@@ -202,49 +203,32 @@ CREATE TABLE EvidenciaRequerimiento (
 -- Reactivar verificación de FK
 SET FOREIGN_KEY_CHECKS = 1;
 
+USE db_visitas_inopinadas;
+
 -- ============================================================================
 -- 3. INSERCIÓN DE CATÁLOGOS BÁSICOS
 -- ============================================================================
 
--- Roles
 INSERT INTO Rol (nombre_rol) VALUES 
 ('ADMIN'), 
 ('AUDITOR'), 
 ('DOCENTE');
 
--- Universidad
 INSERT INTO Universidad (
-    nombre, 
-    vicerrectorado, 
-    facultad, 
-    escuela_profesional, 
-    codigo_formulario, 
-    version, 
-    fecha_version
+    nombre, vicerrectorado, facultad, escuela_profesional, 
+    codigo_formulario, version, fecha_version
 ) VALUES (
-    'UNIVERSIDAD PRIVADA SAN PEDRO', 
-    'VICERRECTORADO ACADÉMICO', 
-    'FACULTAD DE INGENIERÍAS', 
-    'ESCUELA PROFESIONAL DE INGENIERÍA DE SISTEMAS', 
-    'VRA-FR-040', 
-    'V.2.0', 
-    '2025-09-26'
+    'UNIVERSIDAD PRIVADA SAN PEDRO', 'VICERRECTORADO ACADÉMICO', 
+    'FACULTAD DE INGENIERÍAS', 'ESCUELA PROFESIONAL DE INGENIERÍA DE SISTEMAS', 
+    'VRA-FR-040', 'V.2.0', '2025-09-26'
 );
 
--- Sedes
 INSERT INTO Sede (nombre, id_universidad) VALUES 
 ('LIMA-CHORRILLOS', 1),
 ('LIMA-CENTRO', 1),
 ('AREQUIPA', 1);
 
--- Asignaturas
-INSERT INTO Asignatura (
-    nombre, 
-    campo_formativo, 
-    ciclo_academico, 
-    turno, 
-    tipo_horario
-) VALUES
+INSERT INTO Asignatura (nombre, campo_formativo, ciclo_academico, turno, tipo_horario) VALUES
 ('INGENIERÍA DE SOFTWARE I', 'FORMACIÓN ESPECIALIZADA', 'VI CICLO', 'NOCHE', 'TEORIA'),
 ('BASE DE DATOS II', 'FORMACIÓN ESPECIALIZADA', 'V CICLO', 'TARDE', 'PRACTICA'),
 ('GESTIÓN DE PROYECTOS TI', 'FORMACIÓN GENERAL', 'VII CICLO', 'NOCHE', 'TEORIA'),
@@ -254,362 +238,115 @@ INSERT INTO Asignatura (
 -- 4. INSERCIÓN DE ENTIDADES ACADÉMICAS Y USUARIOS
 -- ============================================================================
 
--- Docentes (Entidad Académica)
 INSERT INTO Docente (nombres, apellidos, email, estado_activo) VALUES
 ('MIGUEL ANGEL', 'HUERTA ROJAS', 'm.huerta@universidad.edu.pe', TRUE);
 
--- Responsables de Visita (Entidad Académica)
 INSERT INTO ResponsableVisita (nombres, apellidos, cargo, email) VALUES
 ('VICTOR', 'GUADALUPE MORI', 'VICERRECTOR ACADÉMICO', 'v.guadalupe@universidad.edu.pe');
 
--- Usuarios del Sistema (Login)
--- Contraseña para todos: "123456" 
--- Hash BCrypt: $2a$10$JnWtYwpitWzonOVCuqGWvuzTGCJVJFHyNXks5d.BkQTaJxmBU5cMS
-
--- Admin: id_rol=1, sin vinculación académica
-INSERT INTO UsuarioSistema (
-    email, 
-    password_hash, 
-    nombres, 
-    apellidos, 
-    id_rol, 
-    id_docente, 
-    id_responsable, 
-    estado,
-    firma_hash
-) VALUES (
-    'admin@universidad.edu.pe', 
-    '$2a$10$JnWtYwpitWzonOVCuqGWvuzTGCJVJFHyNXks5d.BkQTaJxmBU5cMS', 
-    'ADMINISTRADOR', 
-    'SISTEMAS', 
-    1, 
-    NULL, 
-    NULL, 
-    TRUE,
-    NULL
-);
-
--- Auditor: id_rol=2, vinculado a ResponsableVisita id=1
-INSERT INTO UsuarioSistema (
-    email, 
-    password_hash, 
-    nombres, 
-    apellidos, 
-    id_rol, 
-    id_docente, 
-    id_responsable, 
-    estado,
-    firma_hash
-) VALUES (
-    'v.guadalupe@universidad.edu.pe', 
-    '$2a$10$JnWtYwpitWzonOVCuqGWvuzTGCJVJFHyNXks5d.BkQTaJxmBU5cMS', 
-    'VICTOR', 
-    'GUADALUPE MORI', 
-    2, 
-    NULL, 
-    1, 
-    TRUE,
-    NULL
-);
-
--- Docente: id_rol=3, vinculado a Docente id=1
-INSERT INTO UsuarioSistema (
-    email, 
-    password_hash, 
-    nombres, 
-    apellidos, 
-    id_rol, 
-    id_docente, 
-    id_responsable, 
-    estado,
-    firma_hash
-) VALUES (
-    'm.huerta@universidad.edu.pe', 
-    '$2a$10$JnWtYwpitWzonOVCuqGWvuzTGCJVJFHyNXks5d.BkQTaJxmBU5cMS', 
-    'MIGUEL ANGEL', 
-    'HUERTA ROJAS', 
-    3, 
-    1, 
-    NULL, 
-    TRUE,
-    NULL
-);
+-- Usuarios (Contraseña prueba: 123456 | Hash: $2a$10$JnWtYwpitWzonOVCuqGWvuzTGCJVJFHyNXks5d.BkQTaJxmBU5cMS)
+INSERT INTO UsuarioSistema (email, password_hash, nombres, apellidos, id_rol, id_docente, id_responsable, estado, firma_hash) VALUES
+('admin@universidad.edu.pe', '$2a$10$JnWtYwpitWzonOVCuqGWvuzTGCJVJFHyNXks5d.BkQTaJxmBU5cMS', 'ADMINISTRADOR', 'SISTEMAS', 1, NULL, NULL, TRUE, NULL),
+('v.guadalupe@universidad.edu.pe', '$2a$10$JnWtYwpitWzonOVCuqGWvuzTGCJVJFHyNXks5d.BkQTaJxmBU5cMS', 'VICTOR', 'GUADALUPE MORI', 2, NULL, 1, TRUE, NULL),
+('m.huerta@universidad.edu.pe', '$2a$10$JnWtYwpitWzonOVCuqGWvuzTGCJVJFHyNXks5d.BkQTaJxmBU5cMS', 'MIGUEL ANGEL', 'HUERTA ROJAS', 3, 1, NULL, TRUE, NULL);
 
 -- ============================================================================
--- 5. INSERCIÓN DE VISITAS DE EJEMPLO Y EVALUACIONES
+-- 5. INSERCIÓN DE VISITAS, EVALUACIONES Y REQUERIMIENTOS
 -- ============================================================================
 
--- 5.1 Visita COMPLETADA (Histórica)
+-- 5.1 Visita COMPLETADA
 INSERT INTO VisitaInopinada (
-    fecha_visita, 
-    hora_inicio, 
-    hora_termino, 
-    semana_numero, 
-    lugar_visita, 
-    tipo_clase,
-    id_sede, 
-    id_docente, 
-    id_asignatura, 
-    id_responsable, 
-    id_usuario_auditor,
-    estado_visita, 
-    firma_docente_hash, 
-    firma_responsable_hash, 
-    fecha_firma_docente, 
-    fecha_firma_responsable
+    fecha_visita, hora_inicio, hora_termino, semana_numero, lugar_visita, tipo_clase,
+    id_sede, id_docente, id_asignatura, id_responsable, id_usuario_auditor,
+    estado_visita, firma_docente_hash, firma_responsable_hash, fecha_firma_docente, fecha_firma_responsable
 ) VALUES (
-    '2026-05-05', 
-    '19:00:00', 
-    '20:30:00', 
-    12, 
-    'LABORATORIO DE CÓMPUTO 3', 
-    'PRACTICA',
-    1, 
-    1, 
-    2, 
-    1, 
-    2,
+    '2026-05-05', '19:00:00', '20:30:00', 12, 'LABORATORIO DE CÓMPUTO 3', 'PRACTICA',
+    1, 1, 2, 1, 2,
     'COMPLETADA', 
     'hash_firma_docente_simulado_12345', 
     'hash_firma_auditor_simulado_67890',
-    '2026-05-05 20:35:00',
-    '2026-05-05 20:40:00'
+    '2026-05-05 20:35:00', '2026-05-05 20:40:00'
 );
-
 SET @id_visita_completada = LAST_INSERT_ID();
 
--- Evaluaciones de la Visita Completada
-INSERT INTO EvaluacionControlDocente (
-    id_visita, 
-    docente_presente, 
-    horario_cumplido, 
-    interaccion_adecuada, 
-    actividad_desarrollada, 
-    observaciones
-) VALUES (
-    @id_visita_completada, 
-    TRUE, 
-    TRUE, 
-    TRUE, 
-    'Desarrollo de práctica calificada N°2 sobre Normalización', 
-    'El docente mostró puntualidad y dominio del tema.'
-);
+-- Evaluaciones Visita Completada
+INSERT INTO EvaluacionControlDocente (id_visita, docente_presente, horario_cumplido, interaccion_adecuada, actividad_desarrollada, observaciones) 
+VALUES (@id_visita_completada, TRUE, TRUE, TRUE, 'Desarrollo de práctica calificada N°2 sobre Normalización', 'El docente mostró puntualidad y dominio del tema.');
 
-INSERT INTO EvaluacionMaterialVirtual (
-    id_visita, 
-    cumple, 
-    observaciones
-) VALUES (
-    @id_visita_completada, 
-    TRUE, 
-    'La guía de práctica y el dataset estaban cargados en el aula virtual desde el día anterior.'
-);
+INSERT INTO EvaluacionMaterialVirtual (id_visita, cumple, observaciones) 
+VALUES (@id_visita_completada, TRUE, 'Guía y dataset cargados en aula virtual con 24h de anticipación.');
 
+-- ✅ EvaluacionAsistenciaEstudiantes ADAPTADA a la nueva estructura
 INSERT INTO EvaluacionAsistenciaEstudiantes (
-    id_visita, 
-    tipo_control, 
-    resultado_control, 
-    observaciones
+    id_visita, ambiente_cumple, ambiente_observaciones, intranet_cumple, intranet_observaciones, observaciones_generales
 ) VALUES (
     @id_visita_completada, 
-    'MIXTO', 
-    'CUMPLE', 
-    'Se verificó la asistencia física mediante ficha y se cruzó con la asistencia registrada en la intranet. Coincidencia del 100%.'
+    'CUMPLE', 'Aulas con ventilación, iluminación y mobiliario operativo.', 
+    'CUMPLE', 'Listas cotejadas correctamente en intranet. Coincidencia 100%.', 
+    'Se recomienda digitalizar el registro de justificados para evitar retrasos en reportes.'
 );
 
-INSERT INTO EvaluacionAvanceSilabico (
-    id_visita, 
-    tema_coincide_visita, 
-    tema_coincide_anterior, 
-    ingreso_aula_virtual, 
-    observaciones
-) VALUES (
-    @id_visita_completada, 
-    TRUE, 
-    TRUE, 
-    TRUE, 
-    'El tema "Normalización hasta 3FN" coincide exactamente con lo programado en el sílabo para la semana 12.'
-);
+INSERT INTO EvaluacionAvanceSilabico (id_visita, tema_coincide_visita, tema_coincide_anterior, ingreso_aula_virtual, observaciones) 
+VALUES (@id_visita_completada, TRUE, TRUE, TRUE, 'El tema "Normalización hasta 3FN" coincide con el sílabo semana 12.');
 
-INSERT INTO EvaluacionGuiaPractica (
-    id_visita, 
-    tema_programado_cumple, 
-    logro_evidenciado, 
-    rubrica_evaluacion, 
-    observaciones
-) VALUES (
-    @id_visita_completada, 
-    'CUMPLE', 
-    'CUMPLE', 
-    'CUMPLE', 
-    'Los estudiantes trabajaron en equipos resolviendo los casos planteados. Se evidenció el logro de análisis de dependencias funcionales.'
-);
+INSERT INTO EvaluacionGuiaPractica (id_visita, tema_programado_cumple, logro_evidenciado, rubrica_evaluacion, observaciones) 
+VALUES (@id_visita_completada, 'CUMPLE', 'CUMPLE', 'CUMPLE', 'Trabajo en equipos con evidencia de resolución de casos prácticos.');
 
--- ✅ REQUERIMIENTOS DEL EVALUADOR HACIA EL DOCENTE (Observaciones/Acciones Correctivas)
--- Estos son hallazgos que el docente debe subsanar
+-- Requerimientos del Evaluador → Docente
+INSERT INTO RequerimientoVisita (id_visita, descripcion, fecha_solicitud, estado, respuesta, fecha_respuesta) 
+VALUES (@id_visita_completada, 'Actualizar guía práctica N°3 en aula virtual con ejercicios BCNF.', '2026-05-05', 'PENDIENTE', NULL, NULL);
+SET @req1 = LAST_INSERT_ID();
 
--- Requerimiento 1: Actualización de material virtual
-INSERT INTO RequerimientoVisita (
-    id_visita, 
-    descripcion, 
-    fecha_solicitud, 
-    estado,
-    respuesta,
-    fecha_respuesta
-) VALUES (
-    @id_visita_completada, 
-    'El docente debe actualizar la guía de práctica N°3 en el aula virtual con los ejercicios de normalización BCNF, según lo programado en el sílabo.', 
-    '2026-05-05', 
-    'PENDIENTE',
-    NULL,
-    NULL
-);
+INSERT INTO RequerimientoVisita (id_visita, descripcion, fecha_solicitud, estado, respuesta, fecha_respuesta) 
+VALUES (@id_visita_completada, 'Regularizar en intranet la asistencia de 3 estudiantes faltantes antes de 48h.', '2026-05-05', 'EN_PROCESO', 'Regularización completada. Captura de intranet adjunta.', '2026-05-06');
+SET @req2 = LAST_INSERT_ID();
 
--- Requerimiento 2: Registro de asistencia
-INSERT INTO RequerimientoVisita (
-    id_visita, 
-    descripcion, 
-    fecha_solicitud, 
-    estado,
-    respuesta,
-    fecha_respuesta
-) VALUES (
-    @id_visita_completada, 
-    'Se observó que el registro de asistencia en intranet no coincide con la ficha física. El docente debe regularizar el ingreso de los estudiantes ausentes antes de 48 horas.', 
-    '2026-05-05', 
-    'EN_PROCESO',
-    'Docente indica que ya realizó la regularización en intranet. Pendiente de verificación por coordinación.',
-    '2026-05-06'
-);
+INSERT INTO RequerimientoVisita (id_visita, descripcion, fecha_solicitud, estado, respuesta, fecha_respuesta) 
+VALUES (@id_visita_completada, 'Adjuntar rúbricas evaluadas de la PC2 al repositorio institucional.', '2026-05-05', 'ATENDIDO', 'Rúbricas cargadas: https://repositorio.edu.pe/handle/1234/5678', '2026-05-07');
+SET @req3 = LAST_INSERT_ID();
 
--- Requerimiento 3: Evidencia de evaluación
-INSERT INTO RequerimientoVisita (
-    id_visita, 
-    descripcion, 
-    fecha_solicitud, 
-    estado,
-    respuesta,
-    fecha_respuesta
-) VALUES (
-    @id_visita_completada, 
-    'Adjuntar en el repositorio institucional las rúbricas de evaluación aplicadas en la práctica calificada N°2, con las observaciones por estudiante.', 
-    '2026-05-05', 
-    'ATENDIDO',
-    'Rúbricas cargadas en el repositorio. Enlace: https://repositorio.universidad.edu.pe/handle/1234/5678',
-    '2026-05-07'
-);
+-- ✅ Evidencias de Requerimientos (Nueva Tabla)
+INSERT INTO EvidenciaRequerimiento (id_requerimiento, nombre_archivo, tipo_archivo, ruta_archivo, tamaño_bytes, descripcion, fecha_carga) VALUES
+(@req2, 'captura_intranet_regularizada.jpg', 'image/jpeg', '/evidencias/2026/05/captura_intranet.jpg', 1048576, 'Evidencia de regularización en intranet', '2026-05-06 14:20:00'),
+(@req3, 'rubrica_pc2_normalizacion.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '/evidencias/2026/05/rubrica_pc2.xlsx', 45056, 'Rúbrica con calificaciones y observaciones por estudiante', '2026-05-07 09:15:00');
 
 
--- 5.2 Visita en BORRADOR (Para probar flujo de edición)
+-- 5.2 Visita en BORRADOR
 INSERT INTO VisitaInopinada (
-    fecha_visita, 
-    hora_inicio, 
-    hora_termino, 
-    semana_numero, 
-    lugar_visita, 
-    tipo_clase,
-    id_sede, 
-    id_docente, 
-    id_asignatura, 
-    id_responsable, 
-    id_usuario_auditor,
+    fecha_visita, hora_inicio, hora_termino, semana_numero, lugar_visita, tipo_clase,
+    id_sede, id_docente, id_asignatura, id_responsable, id_usuario_auditor,
     estado_visita
 ) VALUES (
-    '2026-05-06', 
-    '18:00:00', 
-    '19:30:00', 
-    12, 
-    'AULA 402', 
-    'TEORICA',
-    1, 
-    1, 
-    1, 
-    1, 
-    2,
+    '2026-05-06', '18:00:00', '19:30:00', 12, 'AULA 402', 'TEORICA',
+    1, 1, 1, 1, 2,
     'BORRADOR'
 );
-
 SET @id_visita_borrador = LAST_INSERT_ID();
 
--- Evaluaciones Vacías/Default para la Visita en Borrador
-INSERT INTO EvaluacionControlDocente (
-    id_visita, 
-    docente_presente, 
-    horario_cumplido, 
-    interaccion_adecuada
-) VALUES (
-    @id_visita_borrador, 
-    FALSE, 
-    FALSE, 
-    FALSE
-);
+-- Evaluaciones Vacías/Default para Borrador
+INSERT INTO EvaluacionControlDocente (id_visita, docente_presente, horario_cumplido, interaccion_adecuada) 
+VALUES (@id_visita_borrador, FALSE, FALSE, FALSE);
 
-INSERT INTO EvaluacionMaterialVirtual (
-    id_visita, 
-    cumple
-) VALUES (
-    @id_visita_borrador, 
-    FALSE
-);
+INSERT INTO EvaluacionMaterialVirtual (id_visita, cumple) 
+VALUES (@id_visita_borrador, FALSE);
 
-INSERT INTO EvaluacionAsistenciaEstudiantes (
-    id_visita, 
-    tipo_control, 
-    resultado_control
-) VALUES (
-    @id_visita_borrador, 
-    'AMBIENTE', 
-    'NO_APLICA'
-);
+INSERT INTO EvaluacionAsistenciaEstudiantes (id_visita, observaciones_generales) 
+VALUES (@id_visita_borrador, 'Pendiente de registro por auditor.');
 
-INSERT INTO EvaluacionAvanceSilabico (
-    id_visita, 
-    tema_coincide_visita, 
-    tema_coincide_anterior, 
-    ingreso_aula_virtual
-) VALUES (
-    @id_visita_borrador, 
-    FALSE, 
-    FALSE, 
-    FALSE
-);
+INSERT INTO EvaluacionAvanceSilabico (id_visita, tema_coincide_visita, tema_coincide_anterior, ingreso_aula_virtual) 
+VALUES (@id_visita_borrador, FALSE, FALSE, FALSE);
 
-INSERT INTO EvaluacionGuiaPractica (
-    id_visita, 
-    tema_programado_cumple, 
-    logro_evidenciado, 
-    rubrica_evaluacion
-) VALUES (
-    @id_visita_borrador, 
-    'NO_APLICA', 
-    'NO_APLICA', 
-    'NO_APLICA'
-);
+INSERT INTO EvaluacionGuiaPractica (id_visita, tema_programado_cumple, logro_evidenciado, rubrica_evaluacion) 
+VALUES (@id_visita_borrador, 'NO_APLICA', 'NO_APLICA', 'NO_APLICA');
 
--- Requerimientos para la visita en borrador (ejemplos de observaciones del evaluador)
-INSERT INTO RequerimientoVisita (
-    id_visita, 
-    descripcion, 
-    fecha_solicitud, 
-    estado
-) VALUES (
-    @id_visita_borrador, 
-    'El docente debe incluir en la planificación de la sesión los indicadores de logro específicos para la actividad de cierre.', 
-    '2026-05-06', 
-    'PENDIENTE'
-);
+-- Requerimientos Borrador (Observaciones preliminares)
+INSERT INTO RequerimientoVisita (id_visita, descripcion, fecha_solicitud, estado) 
+VALUES (@id_visita_borrador, 'Incluir indicadores de logro específicos en la planificación de cierre de sesión.', '2026-05-06', 'PENDIENTE');
+SET @req4 = LAST_INSERT_ID();
 
-INSERT INTO RequerimientoVisita (
-    id_visita, 
-    descripcion, 
-    fecha_solicitud, 
-    estado
-) VALUES (
-    @id_visita_borrador, 
-    'Se requiere que el docente evidencie en el aula virtual la retroalimentación brindada a los estudiantes en la actividad anterior.', 
-    '2026-05-06', 
-    'PENDIENTE'
-);
+INSERT INTO RequerimientoVisita (id_visita, descripcion, fecha_solicitud, estado) 
+VALUES (@id_visita_borrador, 'Evidenciar en aula virtual la retroalimentación de la actividad anterior.', '2026-05-06', 'PENDIENTE');
+SET @req5 = LAST_INSERT_ID();
 
 -- ============================================================================
 -- 6. VERIFICACIÓN FINAL
@@ -617,28 +354,27 @@ INSERT INTO RequerimientoVisita (
 
 SELECT '✅ DATOS INSERTADOS CORRECTAMENTE' AS MENSAJE;
 
--- Listado de usuarios con sus roles
+-- Usuarios y Roles
+SELECT u.id_usuario, u.email, CONCAT(u.nombres, ' ', u.apellidos) AS nombre_completo, r.nombre_rol 
+FROM UsuarioSistema u JOIN Rol r ON u.id_rol = r.id_rol;
+
+-- Visitas y Estado
+SELECT id_visita, fecha_visita, estado_visita, lugar_visita, tipo_clase FROM VisitaInopinada;
+
+-- ✅ Consulta Completa: Requerimientos con Evidencias y Estado
 SELECT 
-    u.id_usuario, 
-    u.email, 
-    u.nombres, 
-    u.apellidos, 
-    r.nombre_rol AS rol 
-FROM UsuarioSistema u 
-JOIN Rol r ON u.id_rol = r.id_rol;
+    rv.id_requerimiento,
+    rv.descripcion AS observacion_evaluador,
+    rv.estado AS estado_atencion,
+    rv.respuesta AS descargo_docente,
+    e.nombre_archivo,
+    e.ruta_archivo,
+    vi.fecha_visita,
+    CONCAT(d.nombres, ' ', d.apellidos) AS docente_responsable
+FROM RequerimientoVisita rv
+JOIN VisitaInopinada vi ON rv.id_visita = vi.id_visita
+JOIN Docente d ON vi.id_docente = d.id_docente
+LEFT JOIN EvidenciaRequerimiento e ON rv.id_requerimiento = e.id_requerimiento
+ORDER BY vi.fecha_visita DESC, rv.id_requerimiento;
 
--- Listado de visitas
-SELECT 
-    id_visita, 
-    fecha_visita, 
-    estado_visita, 
-    lugar_visita,
-    tipo_clase 
-FROM VisitaInopinada;
-
--- Listado de sedes
-SELECT * FROM Sede;
-
--- Listado de asignaturas
-SELECT * FROM Asignatura;
 
