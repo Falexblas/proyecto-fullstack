@@ -54,6 +54,7 @@ function isTokenExpired(token: string): boolean {
 function buildUserFromToken(token: string): User | null {
   try {
     const decoded = jwtDecode<JwtPayload>(token)
+    console.log("AUTH DEBUG - Token decoded:", decoded)
     return {
       id: decoded.id,
       email: decoded.sub,
@@ -81,17 +82,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const token = localStorage.getItem(TOKEN_KEY)
-    if (token) {
+    const storedUser = localStorage.getItem(USER_KEY)
+    
+    console.log("AUTH DEBUG - token exists:", !!token)
+    console.log("AUTH DEBUG - storedUser exists:", !!storedUser)
+    
+    if (token && storedUser) {
       if (isTokenExpired(token)) {
+        console.log("AUTH DEBUG - Token expired, clearing session")
+        clearSession()
+      } else {
+        try {
+          const parsedUser = JSON.parse(storedUser)
+          console.log("AUTH DEBUG - Loaded user from localStorage:", parsedUser)
+          // Si el usuario no tiene nombre o apellido, reconstruir desde token
+          if (!parsedUser.nombre || !parsedUser.apellido) {
+            console.log("AUTH DEBUG - User missing nombre/apellido, rebuilding from token")
+            const userFromToken = buildUserFromToken(token)
+            if (userFromToken) {
+              setUser(userFromToken)
+              localStorage.setItem(USER_KEY, JSON.stringify(userFromToken))
+            } else {
+              setUser(parsedUser)
+            }
+          } else {
+            setUser(parsedUser)
+          }
+        } catch {
+          console.log("AUTH DEBUG - Failed to parse stored user")
+          clearSession()
+        }
+      }
+    } else if (token) {
+      // Fallback: reconstruir desde token
+      if (isTokenExpired(token)) {
+        console.log("AUTH DEBUG - Token expired, clearing session")
         clearSession()
       } else {
         const userFromToken = buildUserFromToken(token)
+        console.log("AUTH DEBUG - Built user from token:", userFromToken)
         if (userFromToken) {
           setUser(userFromToken)
+          localStorage.setItem(USER_KEY, JSON.stringify(userFromToken))
         } else {
           clearSession()
         }
       }
+    } else {
+      console.log("AUTH DEBUG - No token found")
     }
     setIsLoading(false)
   }, [clearSession])

@@ -1,7 +1,5 @@
 package com.visitas.backend_api.dto;
 
-import com.visitas.backend_api.enums.ResultadoControl;
-import com.visitas.backend_api.enums.TipoControl;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -10,7 +8,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class EvaluacionAsistenciaEstudiantesDTO {
-    private TipoControl tipoControl = TipoControl.AMBIENTE;
-    private ResultadoControl resultadoControl = ResultadoControl.NO_APLICA;
-    private String observaciones;
+    private String ambienteCumple;
+    private String ambienteObservaciones;
+    private String intranetCumple;
+    private String intranetObservaciones;
+    private String observacionesGenerales;
 }

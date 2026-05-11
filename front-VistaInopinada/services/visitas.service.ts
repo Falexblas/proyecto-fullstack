@@ -1,5 +1,47 @@
 import api from "@/lib/api"
 
+export interface EvaluacionControlDocente {
+  docentePresente: boolean
+  horarioCumplido: boolean
+  interaccionAdecuada: boolean
+  actividadDesarrollada: string
+  observaciones: string
+}
+
+export interface EvaluacionMaterialVirtual {
+  cumple: boolean
+  observaciones: string
+}
+
+export interface EvaluacionAsistenciaEstudiantes {
+  ambienteCumple: string | null
+  ambienteObservaciones: string
+  intranetCumple: string | null
+  intranetObservaciones: string
+  observacionesGenerales: string
+}
+
+export interface EvaluacionAvanceSilabico {
+  temaCoincideVisita: boolean
+  temaCoincideAnterior: boolean
+  ingresoAulaVirtual: boolean
+  observaciones: string
+}
+
+export interface EvaluacionGuiaPractica {
+  temaProgramadoCumple: string
+  logroEvidenciado: string
+  rubricaEvaluacion: string
+  observaciones: string
+}
+
+export interface RequerimientoVisita {
+  id: number
+  descripcion: string
+  estado: string
+  fechaSolicitud: string
+}
+
 export interface Visita {
   id: number
   fechaVisita: string
@@ -26,6 +68,12 @@ export interface Visita {
   fechaFirmaResponsable: string | null
   fechaRegistro: string
   updatedAt: string | null
+  evaluacionControlDocente?: EvaluacionControlDocente
+  evaluacionMaterialVirtual?: EvaluacionMaterialVirtual
+  evaluacionAsistenciaEstudiantes?: EvaluacionAsistenciaEstudiantes
+  evaluacionAvanceSilabico?: EvaluacionAvanceSilabico
+  evaluacionGuiaPractica?: EvaluacionGuiaPractica
+  requerimientos?: RequerimientoVisita[]
 }
 
 export interface RequerimientoCreateData {
@@ -69,6 +117,11 @@ export const visitasService = {
 
   create: async (data: VisitaCreateData): Promise<Visita> => {
     const response = await api.post<Visita>("/visitas", data)
+    return response.data
+  },
+
+  update: async (id: number, data: VisitaCreateData): Promise<Visita> => {
+    const response = await api.put<Visita>(`/visitas/${id}`, data)
     return response.data
   },
 

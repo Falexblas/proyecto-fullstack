@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { AlertTriangle, ArrowLeft, Calendar, CheckCircle2, Clock, FileText, MapPin, PenTool, User } from "lucide-react"
+import { AlertTriangle, ArrowLeft, Calendar, CheckCircle2, Clock, FileText, MapPin, PenTool, User, BookOpen, Users, BarChart3, ClipboardList } from "lucide-react"
 import { visitasService, type Visita } from "@/services/visitas.service"
 import { usuarioService } from "@/services/usuario.service"
 import { useAuth } from "@/lib/auth-context"
@@ -327,6 +327,264 @@ export default function VisitaDetallePage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Evaluaciones - Solo para Auditor y Admin */}
+      {showEvaluaciones && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold">Evaluaciones de la Visita</h2>
+          
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Evaluación Control Docente */}
+            <Card>
+              <CardHeader className="bg-primary/5 border-b">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <User className="h-5 w-5" />
+                  Control del Docente
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-2 text-sm">
+                {visita.evaluacionControlDocente ? (
+                  <>
+                    <div className="flex justify-between py-1 border-b">
+                      <span className="text-muted-foreground">Docente presente:</span>
+                      <Badge variant={visita.evaluacionControlDocente.docentePresente ? "default" : "destructive"}>
+                        {visita.evaluacionControlDocente.docentePresente ? "Sí" : "No"}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between py-1 border-b">
+                      <span className="text-muted-foreground">Horario cumplido:</span>
+                      <Badge variant={visita.evaluacionControlDocente.horarioCumplido ? "default" : "destructive"}>
+                        {visita.evaluacionControlDocente.horarioCumplido ? "Sí" : "No"}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between py-1 border-b">
+                      <span className="text-muted-foreground">Interacción adecuada:</span>
+                      <Badge variant={visita.evaluacionControlDocente.interaccionAdecuada ? "default" : "destructive"}>
+                        {visita.evaluacionControlDocente.interaccionAdecuada ? "Sí" : "No"}
+                      </Badge>
+                    </div>
+                    {visita.evaluacionControlDocente.actividadDesarrollada && (
+                      <div className="pt-2">
+                        <span className="text-muted-foreground">Actividad desarrollada:</span>
+                        <p className="text-sm mt-1">{visita.evaluacionControlDocente.actividadDesarrollada}</p>
+                      </div>
+                    )}
+                    {visita.evaluacionControlDocente.observaciones && (
+                      <div className="pt-2">
+                        <span className="text-muted-foreground">Observaciones:</span>
+                        <p className="text-sm mt-1">{visita.evaluacionControlDocente.observaciones}</p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-muted-foreground text-sm">No hay evaluación registrada</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Evaluación Material Virtual */}
+            <Card>
+              <CardHeader className="bg-primary/5 border-b">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <BookOpen className="h-5 w-5" />
+                  Material Virtual
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-2 text-sm">
+                {visita.evaluacionMaterialVirtual ? (
+                  <>
+                    <div className="flex justify-between py-1 border-b">
+                      <span className="text-muted-foreground">Cumple requisitos:</span>
+                      <Badge variant={visita.evaluacionMaterialVirtual.cumple ? "default" : "destructive"}>
+                        {visita.evaluacionMaterialVirtual.cumple ? "Sí" : "No"}
+                      </Badge>
+                    </div>
+                    {visita.evaluacionMaterialVirtual.observaciones && (
+                      <div className="pt-2">
+                        <span className="text-muted-foreground">Observaciones:</span>
+                        <p className="text-sm mt-1">{visita.evaluacionMaterialVirtual.observaciones}</p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-muted-foreground text-sm">No hay evaluación registrada</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Evaluación Asistencia Estudiantes */}
+            <Card>
+              <CardHeader className="bg-primary/5 border-b">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Users className="h-5 w-5" />
+                  Control de Asistencia de Estudiantes
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-4 text-sm">
+                {visita.evaluacionAsistenciaEstudiantes ? (
+                  <>
+                    {/* Control en Ambiente */}
+                    <div className="border rounded-lg p-3">
+                      <h4 className="font-medium mb-2 text-primary">Control en Ambiente</h4>
+                      <div className="flex justify-between py-1 border-b">
+                        <span className="text-muted-foreground">Cumple:</span>
+                        <Badge variant={visita.evaluacionAsistenciaEstudiantes.ambienteCumple === "CUMPLE" ? "default" : "destructive"}>
+                          {visita.evaluacionAsistenciaEstudiantes.ambienteCumple || "No registrado"}
+                        </Badge>
+                      </div>
+                      {visita.evaluacionAsistenciaEstudiantes.ambienteObservaciones && (
+                        <div className="pt-2">
+                          <span className="text-muted-foreground">Observaciones:</span>
+                          <p className="text-sm mt-1">{visita.evaluacionAsistenciaEstudiantes.ambienteObservaciones}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Control en Intranet */}
+                    <div className="border rounded-lg p-3">
+                      <h4 className="font-medium mb-2 text-primary">Control en Intranet</h4>
+                      <div className="flex justify-between py-1 border-b">
+                        <span className="text-muted-foreground">Cumple:</span>
+                        <Badge variant={visita.evaluacionAsistenciaEstudiantes.intranetCumple === "CUMPLE" ? "default" : "destructive"}>
+                          {visita.evaluacionAsistenciaEstudiantes.intranetCumple || "No registrado"}
+                        </Badge>
+                      </div>
+                      {visita.evaluacionAsistenciaEstudiantes.intranetObservaciones && (
+                        <div className="pt-2">
+                          <span className="text-muted-foreground">Observaciones:</span>
+                          <p className="text-sm mt-1">{visita.evaluacionAsistenciaEstudiantes.intranetObservaciones}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Observaciones Generales */}
+                    {visita.evaluacionAsistenciaEstudiantes.observacionesGenerales && (
+                      <div className="pt-2 border-t">
+                        <span className="text-muted-foreground font-medium">Observaciones Generales:</span>
+                        <p className="text-sm mt-1">{visita.evaluacionAsistenciaEstudiantes.observacionesGenerales}</p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-muted-foreground text-sm">No hay evaluación registrada</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Evaluación Avance Silábico */}
+            <Card>
+              <CardHeader className="bg-primary/5 border-b">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <BarChart3 className="h-5 w-5" />
+                  Avance Silábico
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-2 text-sm">
+                {visita.evaluacionAvanceSilabico ? (
+                  <>
+                    <div className="flex justify-between py-1 border-b">
+                      <span className="text-muted-foreground">Tema coincide con visita:</span>
+                      <Badge variant={visita.evaluacionAvanceSilabico.temaCoincideVisita ? "default" : "destructive"}>
+                        {visita.evaluacionAvanceSilabico.temaCoincideVisita ? "Sí" : "No"}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between py-1 border-b">
+                      <span className="text-muted-foreground">Tema coincide con anterior:</span>
+                      <Badge variant={visita.evaluacionAvanceSilabico.temaCoincideAnterior ? "default" : "destructive"}>
+                        {visita.evaluacionAvanceSilabico.temaCoincideAnterior ? "Sí" : "No"}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between py-1 border-b">
+                      <span className="text-muted-foreground">Ingreso aula virtual:</span>
+                      <Badge variant={visita.evaluacionAvanceSilabico.ingresoAulaVirtual ? "default" : "destructive"}>
+                        {visita.evaluacionAvanceSilabico.ingresoAulaVirtual ? "Sí" : "No"}
+                      </Badge>
+                    </div>
+                    {visita.evaluacionAvanceSilabico.observaciones && (
+                      <div className="pt-2">
+                        <span className="text-muted-foreground">Observaciones:</span>
+                        <p className="text-sm mt-1">{visita.evaluacionAvanceSilabico.observaciones}</p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-muted-foreground text-sm">No hay evaluación registrada</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Evaluación Guía Práctica */}
+            {visita.evaluacionGuiaPractica && (
+              <Card>
+                <CardHeader className="bg-primary/5 border-b">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <ClipboardList className="h-5 w-5" />
+                    Guía Práctica
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4 space-y-2 text-sm">
+                  <div className="flex justify-between py-1 border-b">
+                    <span className="text-muted-foreground">Tema programado cumple:</span>
+                    <Badge variant={visita.evaluacionGuiaPractica.temaProgramadoCumple === "CUMPLE" ? "default" : "destructive"}>
+                      {visita.evaluacionGuiaPractica.temaProgramadoCumple}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between py-1 border-b">
+                    <span className="text-muted-foreground">Logro evidenciado:</span>
+                    <Badge variant={visita.evaluacionGuiaPractica.logroEvidenciado === "CUMPLE" ? "default" : "destructive"}>
+                      {visita.evaluacionGuiaPractica.logroEvidenciado}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between py-1 border-b">
+                    <span className="text-muted-foreground">Rúbrica evaluación:</span>
+                    <Badge variant={visita.evaluacionGuiaPractica.rubricaEvaluacion === "CUMPLE" ? "default" : "destructive"}>
+                      {visita.evaluacionGuiaPractica.rubricaEvaluacion}
+                    </Badge>
+                  </div>
+                  {visita.evaluacionGuiaPractica.observaciones && (
+                    <div className="pt-2">
+                      <span className="text-muted-foreground">Observaciones:</span>
+                      <p className="text-sm mt-1">{visita.evaluacionGuiaPractica.observaciones}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Requerimientos */}
+      {visita.requerimientos && visita.requerimientos.length > 0 && (
+        <Card>
+          <CardHeader className="bg-primary/5 border-b">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ClipboardList className="h-5 w-5" />
+              Requerimientos de la Visita
+            </CardTitle>
+            <CardDescription>
+              {visita.requerimientos.length} requerimiento{visita.requerimientos.length !== 1 ? "s" : ""} registrado{visita.requerimientos.length !== 1 ? "s" : ""}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="space-y-3">
+              {visita.requerimientos.map((req) => (
+                <div key={req.id} className="p-3 rounded-lg border bg-muted/50">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">{req.descripcion}</p>
+                    <Badge variant={req.estado === "ATENDIDO" ? "default" : "secondary"}>
+                      {req.estado}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Fecha solicitud: {new Date(req.fechaSolicitud).toLocaleDateString("es-PE")}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Modal de Firma */}
       <Dialog open={showFirmaModal} onOpenChange={setShowFirmaModal}>

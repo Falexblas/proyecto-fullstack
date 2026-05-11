@@ -47,6 +47,7 @@ public interface VisitaMapper {
     @Mapping(target = "apellidosDocente", source = "docente.apellidos")
     @Mapping(target = "nombreAsignatura", source = "asignatura.nombre")
     @Mapping(target = "nombreResponsable", source = "responsable.nombres")
+    @Mapping(target = "idUsuarioAuditor", source = "usuarioAuditor.id")
     @Mapping(target = "nombreAuditor", source = "usuarioAuditor.nombres")
     @Mapping(target = "evaluacionControlDocente", source = "evaluacionControlDocente", qualifiedByName = "toDTO")
     @Mapping(target = "evaluacionMaterialVirtual", source = "evaluacionMaterialVirtual", qualifiedByName = "toDTO")

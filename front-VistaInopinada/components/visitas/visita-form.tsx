@@ -225,6 +225,8 @@ function SignaturePad({ label, value, onChange }: SignaturePadProps) {
 
 export function VisitaForm() {
   const [step, setStep] = useState(1)
+  const { user } = useAuth()
+  const [mounted, setMounted] = useState(false)
   const [formData, setFormData] = useState({
     // Datos generales
     sede: "",
@@ -310,12 +312,24 @@ export function VisitaForm() {
   }
 
   const router = useRouter()
-  const { user } = useAuth()
   const [sedes, setSedes] = useState<Sede[]>([])
   const [docentes, setDocentes] = useState<Docente[]>([])
   const [asignaturas, setAsignaturas] = useState<Asignatura[]>([])
   const [isLoadingData, setIsLoadingData] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Esperar a que el componente se monte en el cliente
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Debug: Verificar estado del usuario
+  useEffect(() => {
+    console.log("DEBUG - Usuario en VisitaForm:", user)
+    console.log("DEBUG - mounted:", mounted)
+    console.log("DEBUG - user?.nombre:", user?.nombre)
+    console.log("DEBUG - user?.apellido:", user?.apellido)
+  }, [user, mounted])
 
   useEffect(() => {
     async function fetchData() {
@@ -1061,7 +1075,15 @@ export function VisitaForm() {
             <CardContent className="pt-4">
               <div className="p-3 bg-muted/50 rounded-lg">
                 <Label className="text-sm text-muted-foreground">Responsable (Auditor):</Label>
-                <p className="font-medium">{user?.nombre} {user?.apellido}</p>
+                <p className="font-medium">
+                  {!mounted 
+                    ? "Cargando..." 
+                    : user?.nombre && user?.apellido 
+                      ? `${user.nombre} ${user.apellido}` 
+                      : user?.nombre 
+                        ? user.nombre 
+                        : "Auditor actual"}
+                </p>
                 <p className="text-sm text-muted-foreground">{user?.email}</p>
               </div>
             </CardContent>
@@ -1135,15 +1157,24 @@ export function VisitaForm() {
               <div className="grid gap-3 text-sm">
                 <div className="flex justify-between py-2 border-b">
                   <span className="text-muted-foreground">Sede:</span>
-                  <span className="font-medium">{formData.sede || "-"}</span>
+                  <span className="font-medium">
+                    {sedes.find(s => s.id.toString() === formData.sede)?.nombre || formData.sede || "-"}
+                  </span>
                 </div>
                 <div className="flex justify-between py-2 border-b">
                   <span className="text-muted-foreground">Docente:</span>
-                  <span className="font-medium">{formData.docente || "-"}</span>
+                  <span className="font-medium">
+                    {(() => {
+                      const d = docentes.find(d => d.id.toString() === formData.docente)
+                      return d ? `${d.nombres} ${d.apellidos}` : formData.docente || "-"
+                    })()}
+                  </span>
                 </div>
                 <div className="flex justify-between py-2 border-b">
                   <span className="text-muted-foreground">Asignatura:</span>
-                  <span className="font-medium">{formData.asignatura || "-"}</span>
+                  <span className="font-medium">
+                    {asignaturas.find(a => a.id.toString() === formData.asignatura)?.nombre || formData.asignatura || "-"}
+                  </span>
                 </div>
                 <div className="flex justify-between py-2 border-b">
                   <span className="text-muted-foreground">Campo Formativo:</span>
@@ -1159,7 +1190,15 @@ export function VisitaForm() {
                 </div>
                 <div className="flex justify-between py-2">
                   <span className="text-muted-foreground">Responsable (Auditor):</span>
-                  <span className="font-medium">{user?.nombre} {user?.apellido}</span>
+                  <span className="font-medium">
+                    {!mounted 
+                      ? "Cargando..." 
+                      : user?.nombre && user?.apellido 
+                        ? `${user.nombre} ${user.apellido}` 
+                        : user?.nombre 
+                          ? user.nombre 
+                          : "Auditor actual"}
+                  </span>
                 </div>
               </div>
 

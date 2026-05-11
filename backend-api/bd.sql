@@ -140,9 +140,11 @@ CREATE TABLE EvaluacionMaterialVirtual (
 CREATE TABLE EvaluacionAsistenciaEstudiantes (
     id_evaluacion INT AUTO_INCREMENT PRIMARY KEY,
     id_visita INT UNIQUE NOT NULL,
-    tipo_control ENUM('AMBIENTE', 'INTRANET', 'MIXTO') DEFAULT 'AMBIENTE',
-    resultado_control ENUM('CUMPLE', 'NO_CUMPLE', 'NO_APLICA') DEFAULT 'NO_APLICA',
-    observaciones TEXT,
+    ambiente_cumple ENUM('CUMPLE', 'NO_CUMPLE') DEFAULT NULL,
+    ambiente_observaciones TEXT,
+    intranet_cumple ENUM('CUMPLE', 'NO_CUMPLE') DEFAULT NULL,
+    intranet_observaciones TEXT,
+    observaciones_generales TEXT,
     FOREIGN KEY (id_visita) REFERENCES VisitaInopinada(id_visita) ON DELETE CASCADE
 );
 
@@ -152,7 +154,6 @@ CREATE TABLE EvaluacionAvanceSilabico (
     tema_coincide_visita BOOLEAN DEFAULT FALSE,
     tema_coincide_anterior BOOLEAN DEFAULT FALSE,
     ingreso_aula_virtual BOOLEAN DEFAULT FALSE,
-    cumple BOOLEAN GENERATED ALWAYS AS (tema_coincide_visita AND tema_coincide_anterior AND ingreso_aula_virtual) STORED,
     observaciones TEXT,
     FOREIGN KEY (id_visita) REFERENCES VisitaInopinada(id_visita) ON DELETE CASCADE
 );
@@ -180,6 +181,22 @@ CREATE TABLE RequerimientoVisita (
     respuesta TEXT,
     fecha_respuesta DATE NULL,
     FOREIGN KEY (id_visita) REFERENCES VisitaInopinada(id_visita) ON DELETE CASCADE
+);
+
+-- ============================================================================
+-- 2.6 EVIDENCIAS DE REQUERIMIENTOS (Hija 1:N)
+-- ============================================================================
+
+CREATE TABLE EvidenciaRequerimiento (
+    id_evidencia INT AUTO_INCREMENT PRIMARY KEY,
+    id_requerimiento INT NOT NULL,
+    nombre_archivo VARCHAR(255) NOT NULL,
+    tipo_archivo VARCHAR(50) NOT NULL,
+    ruta_archivo VARCHAR(500) NOT NULL,
+    tamaño_bytes BIGINT DEFAULT 0,
+    descripcion TEXT,
+    fecha_carga DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_requerimiento) REFERENCES RequerimientoVisita(id_requerimiento) ON DELETE CASCADE
 );
 
 -- Reactivar verificación de FK

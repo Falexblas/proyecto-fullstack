@@ -1,7 +1,5 @@
 package com.visitas.backend_api.entity;
 
-import com.visitas.backend_api.enums.ResultadoControl;
-import com.visitas.backend_api.enums.TipoControl;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -23,14 +21,18 @@ public class EvaluacionAsistenciaEstudiantesEntity {
     @JoinColumn(name = "id_visita", unique = true, nullable = false)
     private VisitaInopinadaEntity visita;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "tipo_control")
-    private TipoControl tipoControl = TipoControl.AMBIENTE;
+    @Column(name = "ambiente_cumple")
+    private String ambienteCumple;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "resultado_control")
-    private ResultadoControl resultadoControl = ResultadoControl.NO_APLICA;
+    @Column(name = "ambiente_observaciones", columnDefinition = "TEXT")
+    private String ambienteObservaciones;
 
-    @Column(name = "observaciones", columnDefinition = "TEXT")
-    private String observaciones;
+    @Column(name = "intranet_cumple")
+    private String intranetCumple;
+
+    @Column(name = "intranet_observaciones", columnDefinition = "TEXT")
+    private String intranetObservaciones;
+
+    @Column(name = "observaciones_generales", columnDefinition = "TEXT")
+    private String observacionesGenerales;
 }

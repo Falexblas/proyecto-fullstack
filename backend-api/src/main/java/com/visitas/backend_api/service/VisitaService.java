@@ -180,6 +180,46 @@ public class VisitaService {
     }
 
     @Transactional
+    public VisitaResponseDTO actualizarVisita(Integer id, VisitaCreateDTO dto) {
+        VisitaInopinadaEntity visita = visitaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Visita", id));
+
+        // Solo se puede editar en estado BORRADOR
+        if (visita.getEstadoVisita() != EstadoVisita.BORRADOR) {
+            throw new InvalidStateException("Solo se pueden editar visitas en estado BORRADOR");
+        }
+
+        // Verificar que el auditor actual sea el creador de la visita
+        Integer currentUserId = authService.getCurrentUserId();
+        if (visita.getUsuarioAuditor() == null || !visita.getUsuarioAuditor().getId().equals(currentUserId)) {
+            throw new UnauthorizedAccessException("No puedes editar visitas de otros evaluadores");
+        }
+
+        // Actualizar campos básicos
+        if (dto.getFechaVisita() != null) {
+            visita.setFechaVisita(dto.getFechaVisita());
+        }
+        if (dto.getHoraInicio() != null) {
+            visita.setHoraInicio(dto.getHoraInicio());
+        }
+        if (dto.getHoraTermino() != null) {
+            visita.setHoraTermino(dto.getHoraTermino());
+        }
+        if (dto.getLugarVisita() != null) {
+            visita.setLugarVisita(dto.getLugarVisita());
+        }
+        if (dto.getTipoClase() != null) {
+            visita.setTipoClase(dto.getTipoClase());
+        }
+        if (dto.getSemanaNumero() != null) {
+            visita.setSemanaNumero(dto.getSemanaNumero());
+        }
+
+        visita = visitaRepository.save(visita);
+        return visitaMapper.toResponseDTO(visita);
+    }
+
+    @Transactional
     public VisitaResponseDTO actualizarEvaluaciones(Integer id, VisitaCreateDTO dto) {
         VisitaInopinadaEntity visita = visitaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Visita", id));

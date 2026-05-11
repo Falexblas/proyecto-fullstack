@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { requerimientosService, type RequerimientoVisita } from "@/services/requerimientos.service"
+import { evidenciasService, type EvidenciaRequerimiento } from "@/services/evidencias.service"
 import {
   AlertCircle,
   Search,
@@ -45,6 +46,9 @@ import {
   Filter,
   Upload,
   FileCheck,
+  X,
+  Download,
+  Trash2,
 } from "lucide-react"
 
 const estadoConfig = {
@@ -86,6 +90,11 @@ export default function RequerimientosPage() {
   const [selectedReq, setSelectedReq] = useState<RequerimientoVisita | null>(null)
   const [respuesta, setRespuesta] = useState("")
   const [nuevoEstado, setNuevoEstado] = useState<string>("")
+  const [archivos, setArchivos] = useState<File[]>([])
+  const [evidencias, setEvidencias] = useState<EvidenciaRequerimiento[]>([])
+  const [cargandoEvidencias, setCargandoEvidencias] = useState(false)
+  const [dragActive, setDragActive] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     cargarRequerimientos()
@@ -117,6 +126,140 @@ export default function RequerimientosPage() {
 
   const isResponderDisabled = !respuesta.trim()
 
+  const cargarEvidencias = async (idRequerimiento: number) => {
+    try {
+      setCargandoEvidencias(true)
+      const data = await evidenciasService.listPorRequerimiento(idRequerimiento)
+      setEvidencias(data)
+    } catch (error) {
+      console.error("Error al cargar evidencias:", error)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las evidencias",
+        variant: "destructive",
+      })
+    } finally {
+      setCargandoEvidencias(false)
+    }
+  }
+
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
+  }
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const nuevosArchivos = Array.from(e.dataTransfer.files).filter(
+        (file) => file.size <= 10 * 1024 * 1024
+      ) // Máximo 10MB
+      if (nuevosArchivos.length > 0) {
+        setArchivos((prev) => [...prev, ...nuevosArchivos])
+      } else {
+        toast({
+          title: "Error",
+          description: "Los archivos deben ser menores a 10MB",
+          variant: "destructive",
+        })
+      }
+    }
+  }
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const nuevosArchivos = Array.from(e.target.files).filter(
+        (file) => file.size <= 10 * 1024 * 1024
+      ) // Máximo 10MB
+      if (nuevosArchivos.length > 0) {
+        setArchivos((prev) => [...prev, ...nuevosArchivos])
+      } else {
+        toast({
+          title: "Error",
+          description: "Los archivos deben ser menores a 10MB",
+          variant: "destructive",
+        })
+      }
+    }
+  }
+
+  const removeArchivo = (index: number) => {
+    setArchivos((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const handleSubirEvidencia = async (archivo: File) => {
+    if (!selectedReq) return
+    try {
+      await evidenciasService.subirEvidencia(
+        selectedReq.id,
+        archivo,
+        undefined  // sin descripción adicional
+      )
+      toast({
+        title: "Éxito",
+        description: "Evidencia subida correctamente",
+      })
+      await cargarEvidencias(selectedReq.id)
+      setArchivos([])
+    } catch (error) {
+      console.error("Error al subir evidencia:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo subir la evidencia",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleEliminarEvidencia = async (idEvidencia: number) => {
+    try {
+      await evidenciasService.eliminar(idEvidencia)
+      toast({
+        title: "Éxito",
+        description: "Evidencia eliminada",
+      })
+      if (selectedReq) {
+        await cargarEvidencias(selectedReq.id)
+      }
+    } catch (error) {
+      console.error("Error al eliminar evidencia:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la evidencia",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDescargarEvidencia = async (evidencia: EvidenciaRequerimiento) => {
+    try {
+      const blob = await evidenciasService.descargarArchivo(evidencia.id)
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.setAttribute("download", evidencia.nombreArchivo)
+      document.body.appendChild(link)
+      link.click()
+      link.parentElement?.removeChild(link)
+    } catch (error) {
+      console.error("Error al descargar:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo descargar el archivo",
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleResponder = async () => {
     if (!selectedReq) return
 
@@ -133,6 +276,13 @@ export default function RequerimientosPage() {
       if (isDocente) {
         // Docente atiende el requerimiento
         await requerimientosService.atender(selectedReq.id, respuesta.trim())
+        
+        // Subir archivos de evidencia
+        if (archivos.length > 0) {
+          for (const archivo of archivos) {
+            await handleSubirEvidencia(archivo)
+          }
+        }
       } else {
         // Admin/Auditor ya no pueden modificar requerimientos
         toast({
@@ -150,6 +300,7 @@ export default function RequerimientosPage() {
       setSelectedReq(null)
       setRespuesta("")
       setNuevoEstado("")
+      setArchivos([])
       cargarRequerimientos()
     } catch (error) {
       console.error("Error al responder requerimiento:", error)
@@ -165,6 +316,8 @@ export default function RequerimientosPage() {
     setSelectedReq(req)
     setRespuesta(req.respuesta || "")
     setNuevoEstado(req.estado?.toLowerCase() || "pendiente")
+    setArchivos([])
+    cargarEvidencias(req.id)
   }
 
   const filteredRequerimientos = requerimientos.filter((req) => {
@@ -362,7 +515,7 @@ export default function RequerimientosPage() {
           }
         }}
       >
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>Requerimiento #{selectedReq?.id}</DialogTitle>
             <DialogDescription>
@@ -370,37 +523,37 @@ export default function RequerimientosPage() {
             </DialogDescription>
           </DialogHeader>
           {selectedReq && (
-            <div className="space-y-4 py-4">
-              <div className="p-4 bg-muted rounded-lg">
+            <div className="space-y-3 py-2">
+              <div className="p-2 bg-muted rounded-lg">
                 <Label className="text-xs text-muted-foreground">Descripcion del requerimiento:</Label>
-                <p className="mt-1 text-sm">{selectedReq.descripcion}</p>
+                <p className="mt-0.5 text-sm">{selectedReq.descripcion}</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-4 gap-2 text-sm">
                 <div>
                   <Label className="text-xs text-muted-foreground">Docente:</Label>
-                  <p className="font-medium">{selectedReq.nombreDocente}</p>
+                  <p className="font-medium text-xs">{selectedReq.nombreDocente}</p>
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Asignatura:</Label>
-                  <p className="font-medium">{selectedReq.nombreAsignatura}</p>
+                  <p className="font-medium text-xs">{selectedReq.nombreAsignatura}</p>
                 </div>
                 <div>
-                  <Label className="text-xs text-muted-foreground">Fecha solicitud:</Label>
-                  <p className="font-medium">
+                  <Label className="text-xs text-muted-foreground">Fecha:</Label>
+                  <p className="font-medium text-xs">
                     {selectedReq.fechaSolicitud
                       ? new Date(selectedReq.fechaSolicitud).toLocaleDateString("es-PE")
                       : "-"}
                   </p>
                 </div>
                 <div>
-                  <Label className="text-xs text-muted-foreground">Estado actual:</Label>
+                  <Label className="text-xs text-muted-foreground">Estado:</Label>
                   <Badge
                     variant="secondary"
-                    className={
+                    className={`text-xs px-1 py-0.5 ${
                       estadoConfig[normalizeEstado(selectedReq.estado)]?.color ||
                       estadoConfig.pendiente.color
-                    }
+                    }`}
                   >
                     {estadoConfig[normalizeEstado(selectedReq.estado)]?.label || "Pendiente"}
                   </Badge>
@@ -408,49 +561,225 @@ export default function RequerimientosPage() {
               </div>
 
               {selectedReq.respuesta && (
-                <div className="p-4 bg-accent/10 border border-accent/20 rounded-lg">
+                <div className="p-2 bg-accent/10 border border-accent/20 rounded-lg">
                   <Label className="text-xs text-muted-foreground">Respuesta:</Label>
-                  <p className="mt-1 text-sm">{selectedReq.respuesta}</p>
-                  <p className="text-xs text-muted-foreground mt-2">
+                  <p className="mt-0.5 text-sm">{selectedReq.respuesta}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
                     Respondido: {selectedReq.fechaRespuesta && new Date(selectedReq.fechaRespuesta).toLocaleDateString("es-PE")}
                   </p>
                 </div>
               )}
 
+              {/* Mostrar evidencias cargadas (para requerimientos atendidos) */}
+              {evidencias.length > 0 && selectedReq?.estado?.toLowerCase() === "atendido" && (
+                <div className="p-2 bg-green-50 dark:bg-green-950/20 rounded border border-green-200 dark:border-green-900">
+                  <Label className="text-xs text-green-900 dark:text-green-300 font-medium flex items-center gap-1">
+                    <FileText className="h-3 w-3" />
+                    Evidencias adjuntas: {evidencias.length}
+                  </Label>
+                  <div className="space-y-1 mt-1 max-h-32 overflow-y-auto">
+                    {evidencias.map((evidencia) => (
+                      <div key={evidencia.id} className="bg-white dark:bg-slate-900 p-1.5 rounded border border-green-100 dark:border-green-900/50">
+                        <div className="flex items-start justify-between gap-1">
+                          <div className="flex items-start gap-1 flex-1 min-w-0">
+                            <FileText className="h-3 w-3 text-green-600 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium break-all">{evidencia.nombreArchivo}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(evidencia.fechaCarga).toLocaleDateString("es-PE")}
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-5 w-5 p-0"
+                            onClick={() => handleDescargarEvidencia(evidencia)}
+                            title="Descargar"
+                          >
+                            <Download className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {canRespond && selectedReq?.estado?.toLowerCase() !== "atendido" && (
-                <div className="space-y-4 border-t pt-4">
-                  <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                    <h4 className="font-medium text-blue-900 flex items-center gap-2">
-                      <FileCheck className="h-4 w-4" />
+                <div className="space-y-2 border-t pt-2">
+                  <div className="bg-blue-50 p-2 rounded-lg border border-blue-200">
+                    <h4 className="font-medium text-blue-900 flex items-center gap-1 text-sm">
+                      <FileCheck className="h-3 w-3" />
                       Atender Requerimiento
                     </h4>
-                    <p className="text-sm text-blue-700 mt-1">
-                      Para atender este requerimiento, describe las acciones realizadas y adjunta la evidencia correspondiente (archivos, fotos, enlaces).
+                    <p className="text-xs text-blue-700 mt-0.5">
+                      Describe las acciones realizadas y adjunta evidencia.
                     </p>
                   </div>
                   
-                  <div className="space-y-2">
-                    <Label htmlFor="respuesta">Descripción de acciones tomadas:</Label>
+                  <div>
+                    <Label htmlFor="respuesta" className="text-xs">Descripción de acciones:</Label>
                     <Textarea
                       id="respuesta"
-                      placeholder="Ej: Actualicé la guía de práctica N°3 con los ejercicios de normalización BCNF y subí el archivo al aula virtual..."
+                      placeholder="Ej: Actualicé la guía y subí el archivo..."
                       value={respuesta}
                       onChange={(e) => setRespuesta(e.target.value)}
-                      rows={4}
+                      rows={2}
+                      className="text-xs mt-1"
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Evidencia adjunta:</Label>
-                    <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center hover:bg-muted/50 transition-colors cursor-pointer">
-                      <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                      <p className="text-sm text-muted-foreground">
-                        Arrastra archivos aquí o haz clic para seleccionar
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        PDF, imágenes, documentos (máx. 10MB)
-                      </p>
+                  <div>
+                    <Label className="text-xs">Evidencia adjunta:</Label>
+                    <div className="grid grid-cols-2 gap-2 mt-1">
+                      <div 
+                        className={`border-2 border-dashed rounded-lg p-3 text-center transition-colors cursor-pointer ${dragActive ? "border-blue-500 bg-blue-50 dark:bg-blue-950" : "border-muted-foreground/25 hover:bg-muted/50"}`}
+                        onDragEnter={handleDragEnter}
+                        onDragLeave={handleDragLeave}
+                        onDragOver={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                        }}
+                        onDrop={handleDrop}
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          multiple
+                          onChange={handleFileInput}
+                          className="hidden"
+                          accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.txt"
+                        />
+                        <Upload className="h-6 w-6 mx-auto text-muted-foreground mb-1" />
+                        <p className="text-xs text-muted-foreground">
+                          Arrastra o haz clic
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          (máx. 10MB)
+                        </p>
+                      </div>
+
+                      <div>
+                        {archivos.length > 0 && (
+                          <div className="space-y-1 max-h-32 overflow-y-auto">
+                            {archivos.map((archivo, index) => {
+                              const isImage = archivo.type.startsWith("image/")
+                              const previewUrl = isImage ? URL.createObjectURL(archivo) : null
+                              
+                              return (
+                                <div key={index} className="bg-muted p-1.5 rounded border border-muted-foreground/20">
+                                  <div className="flex items-start justify-between gap-1">
+                                    <div className="flex items-start gap-1 flex-1 min-w-0">
+                                      <FileText className="h-3 w-3 text-muted-foreground mt-0.5 flex-shrink-0" />
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-medium break-all">{archivo.name}</p>
+                                        <span className="text-xs text-muted-foreground">
+                                          ({(archivo.size / 1024).toFixed(1)}KB)
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="flex-shrink-0 h-5 w-5 p-0"
+                                      onClick={() => removeArchivo(index)}
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                  {isImage && previewUrl && (
+                                    <div className="mt-1">
+                                      <img 
+                                        src={previewUrl} 
+                                        alt={archivo.name}
+                                        className="max-h-20 rounded object-contain bg-white border"
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
                     </div>
+
+                    {/* Mostrar evidencias ya cargadas */}
+                    {evidencias.length > 0 && (
+                      <div className="p-2 bg-green-50 dark:bg-green-950/20 rounded border border-green-200 dark:border-green-900">
+                        <Label className="text-xs text-green-900 dark:text-green-300 font-medium">
+                          Evidencias: {evidencias.length} cargada(s)
+                        </Label>
+                        <div className="space-y-1 mt-1 max-h-28 overflow-y-auto">
+                          {evidencias.map((evidencia) => {
+                            const isImage = evidencia.tipoArchivo?.startsWith("image/")
+                            
+                            return (
+                              <div key={evidencia.id} className="bg-white dark:bg-slate-900 p-1.5 rounded border border-green-100 dark:border-green-900/50">
+                                <div className="flex items-start justify-between gap-1">
+                                  <div className="flex items-start gap-1 flex-1 min-w-0">
+                                    <FileText className="h-3 w-3 text-green-600 mt-0.5 flex-shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs font-medium break-all">{evidencia.nombreArchivo}</p>
+                                      {evidencia.descripcion && (
+                                        <p className="text-xs text-muted-foreground">{evidencia.descripcion}</p>
+                                      )}
+                                      <p className="text-xs text-muted-foreground">
+                                        {new Date(evidencia.fechaCarga).toLocaleDateString("es-PE")}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-0.5 flex-shrink-0">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-5 w-5 p-0"
+                                      onClick={() => handleDescargarEvidencia(evidencia)}
+                                      title="Descargar"
+                                    >
+                                      <Download className="h-3 w-3" />
+                                    </Button>
+                                    {canRespond && (
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-5 w-5 p-0"
+                                        onClick={() => handleEliminarEvidencia(evidencia.id)}
+                                        title="Eliminar"
+                                      >
+                                        <Trash2 className="h-3 w-3 text-red-600" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                {isImage && (
+                                  <div className="mt-1">
+                                    <img 
+                                      src={evidenciasService.obtenerUrlPreview(evidencia.id)}
+                                      alt={evidencia.nombreArchivo}
+                                      className="max-h-16 rounded object-contain bg-white border border-green-100"
+                                      onError={(e) => {
+                                        e.currentTarget.style.display = 'none'
+                                      }}
+                                    />
+                                    <p className="text-xs text-muted-foreground mt-1 text-center">
+                                      Haz clic en descargar para obtener la imagen en tamaño completo
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   
                   {!respuesta.trim() && (
@@ -460,8 +789,8 @@ export default function RequerimientosPage() {
               )}
             </div>
           )}
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setSelectedReq(null)}>
+          <DialogFooter className="gap-1 pt-1">
+            <Button variant="outline" onClick={() => setSelectedReq(null)} size="sm">
               Cerrar
             </Button>
             {canRespond && selectedReq?.estado?.toLowerCase() !== "atendido" && (
@@ -469,9 +798,10 @@ export default function RequerimientosPage() {
                 disabled={isResponderDisabled} 
                 onClick={handleResponder}
                 className="bg-green-600 hover:bg-green-700"
+                size="sm"
               >
-                <CheckCircle2 className="h-4 w-4 mr-2" />
-                Marcar como Atendido
+                <CheckCircle2 className="h-4 w-4 mr-1" />
+                Guardar
               </Button>
             )}
           </DialogFooter>

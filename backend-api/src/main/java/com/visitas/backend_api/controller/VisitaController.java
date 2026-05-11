@@ -74,6 +74,15 @@ public class VisitaController {
         return ResponseEntity.ok(response);
     }
 
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('AUDITOR')")
+    public ResponseEntity<VisitaResponseDTO> actualizarVisita(
+            @PathVariable Integer id,
+            @Valid @RequestBody VisitaCreateDTO dto) {
+        VisitaResponseDTO response = visitaService.actualizarVisita(id, dto);
+        return ResponseEntity.ok(response);
+    }
+
     @PutMapping("/{id}/evaluaciones")
     @PreAuthorize("hasRole('AUDITOR')")
     public ResponseEntity<VisitaResponseDTO> actualizarEvaluaciones(

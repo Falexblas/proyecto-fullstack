@@ -30,9 +30,6 @@ public class EvaluacionAvanceSilabicoEntity {
     @Column(name = "ingreso_aula_virtual")
     private Boolean ingresoAulaVirtual = false;
 
-    @Column(name = "cumple", insertable = false, updatable = false)
-    private Boolean cumple;
-
     @Column(name = "observaciones", columnDefinition = "TEXT")
     private String observaciones;
 }

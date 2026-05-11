@@ -18,7 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
-import { CheckCircle2, XCircle, Clock, MoreHorizontal, Eye, Edit, FileText, AlertTriangle } from "lucide-react"
+import { CheckCircle2, XCircle, Clock, MoreHorizontal, Eye, FileText, AlertTriangle } from "lucide-react"
 import Link from "next/link"
 import { visitasService, type Visita } from "@/services/visitas.service"
 import { useAuth } from "@/lib/auth-context"
@@ -41,10 +41,6 @@ export function VisitasTable({ showOnlyMine = false }: VisitasTableProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
-  const isAdmin = user?.rol === "ADMIN"
-  const isAuditor = user?.rol === "AUDITOR"
-  const canEdit = isAuditor // Solo auditor puede editar
-
   useEffect(() => {
     async function fetchVisitas() {
       try {
@@ -197,14 +193,6 @@ export function VisitasTable({ showOnlyMine = false }: VisitasTableProps) {
                           Ver detalle
                         </Link>
                       </DropdownMenuItem>
-                      {canEdit && (
-                        <DropdownMenuItem asChild>
-                          <Link href={`/visitas/${visita.id}/editar`}>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Editar
-                          </Link>
-                        </DropdownMenuItem>
-                      )}
                       <DropdownMenuItem>
                         <FileText className="h-4 w-4 mr-2" />
                         Generar PDF
