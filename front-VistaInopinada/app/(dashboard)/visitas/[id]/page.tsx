@@ -167,7 +167,7 @@ export default function VisitaDetallePage() {
 
   const canFirmarDocente = isDocente && visita.estadoVisita === "BORRADOR"
   const canFirmarAuditor = isAuditor && visita.estadoVisita === "FIRMADA_DOCENTE"
-  const showEvaluaciones = isAuditor || isAdmin
+  const showEvaluaciones = isDocente || isAuditor || isAdmin
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">

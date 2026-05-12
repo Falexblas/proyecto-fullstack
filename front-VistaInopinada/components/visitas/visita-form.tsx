@@ -285,6 +285,7 @@ export function VisitaForm() {
 
   const updateField = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+    removeFieldError(field)
   }
 
   // Funciones para manejar requerimientos dinámicos
@@ -311,15 +312,230 @@ export function VisitaForm() {
     }))
   }
 
+  const formatLocalDate = (date: Date) => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
+  }
+
+  const todayDateString = formatLocalDate(new Date())
+
+  const parseDate = (dateString: string) => {
+    const [year, month, day] = dateString.split("-").map(Number)
+    return new Date(year, month - 1, day)
+  }
+
+  const parseTime = (timeString: string) => {
+    const [hours, minutes] = timeString.split(":").map(Number)
+    return { hours, minutes }
+  }
+
+  const getCurrentTimeString = () => {
+    const now = new Date()
+    const hours = String(now.getHours()).padStart(2, "0")
+    const minutes = String(now.getMinutes()).padStart(2, "0")
+    return `${hours}:${minutes}`
+  }
+
+  const validateStep1 = () => {
+    const newErrors: Record<string, string> = {}
+    const idSede = parseInt(formData.sede)
+    const idAsignatura = parseInt(formData.asignatura)
+
+    if (!formData.fecha) newErrors.fecha = "Fecha de visita es obligatoria."
+    if (isNaN(idSede)) newErrors.sede = "Selecciona una sede."
+    if (!formData.ciclo) newErrors.ciclo = "Selecciona un ciclo."
+    if (!formData.turno) newErrors.turno = "Selecciona un turno."
+    if (isNaN(idAsignatura)) newErrors.asignatura = "Selecciona una asignatura."
+    if (!formData.campoFormativo) newErrors.campoFormativo = "Selecciona un campo formativo."
+    if (!formData.semana) newErrors.semana = "Selecciona la semana."
+    if (!formData.tipoClase) newErrors.tipoClase = "Selecciona el tipo de clase."
+    if (!formData.horaPractica) newErrors.horaPractica = "Indica horas de práctica/teoría."
+    if (!formData.lugar) newErrors.lugar = "Ingresa el lugar de la visita."
+
+    if (!newErrors.fecha && !isValidDateString(formData.fecha)) {
+      newErrors.fecha = "Fecha de visita inválida."
+    }
+
+    if (!newErrors.fecha) {
+      const selectedDate = parseDate(formData.fecha)
+      const today = parseDate(todayDateString)
+      if (selectedDate.getTime() < today.getTime()) {
+        newErrors.fecha = "La fecha de visita no puede ser anterior a hoy."
+      }
+
+      const horaInicio = isValidTimeString(formData.horaInicio) ? formData.horaInicio : getCurrentTimeString()
+      const { hours, minutes } = parseTime(horaInicio)
+      const startDateTime = new Date(selectedDate)
+      startDateTime.setHours(hours, minutes, 0, 0)
+      if (selectedDate.getTime() === today.getTime() && startDateTime.getTime() < Date.now()) {
+        newErrors.fecha = "La fecha y hora de inicio no pueden ser anteriores a la actual cuando la visita es hoy."
+      }
+    }
+
+    setErrors(newErrors)
+    return {
+      valid: Object.keys(newErrors).length === 0,
+      message: Object.values(newErrors)[0] || "Complete los campos obligatorios"
+    }
+  }
+
+  const validateStep2 = () => {
+    const newErrors: Record<string, string> = {}
+    const idDocente = parseInt(formData.docente)
+    if (isNaN(idDocente)) newErrors.docente = "Selecciona un docente."
+    if (!formData.docentePresente) newErrors.docentePresente = "Selecciona si el docente estuvo presente."
+    if (!formData.horarioProgramado) newErrors.horarioProgramado = "Selecciona si el horario fue programado."
+    if (!formData.interaccion) newErrors.interaccion = "Selecciona si la interacción fue adecuada."
+    if (!formData.materialCargado) newErrors.materialCargado = "Selecciona el estado del material virtual."
+    if (!formData.asistenciaAmbienteCumple) newErrors.asistenciaAmbienteCumple = "Selecciona el control en ambiente."
+    if (!formData.asistenciaIntranetCumple) newErrors.asistenciaIntranetCumple = "Selecciona el control en intranet."
+    if (!formData.temaCoincideVisita) newErrors.temaCoincideVisita = "Selecciona si el tema coincide con la visita."
+    if (!formData.temaCoincideAnterior) newErrors.temaCoincideAnterior = "Selecciona si el tema coincide con el anterior."
+    if (!formData.ingresoAvanceAulaVirtual) newErrors.ingresoAvanceAulaVirtual = "Selecciona si el avance se ingresó en el aula virtual."
+    if (!formData.temaProgramadoGuia) newErrors.temaProgramadoGuia = "Selecciona si cumple el tema programado."
+    if (!formData.logroEvidenciado) newErrors.logroEvidenciado = "Selecciona si el logro está evidenciado."
+    if (!formData.rubricaEvaluacion) newErrors.rubricaEvaluacion = "Selecciona si existe una rúbrica de evaluación."
+
+    setErrors(newErrors)
+    return {
+      valid: Object.keys(newErrors).length === 0,
+      message: Object.values(newErrors)[0] || "Complete los campos obligatorios de evaluación"
+    }
+  }
+  const canProceedToStep = (targetStep: number): { canProceed: boolean; message: string } => {
+    if (targetStep === 1) {
+      return { canProceed: true, message: "" }
+    }
+    if (targetStep === 2) {
+      const validation = validateStep1()
+      return { canProceed: validation.valid, message: validation.message }
+    }
+    if (targetStep === 3) {
+      const validation = validateStep2()
+      return { canProceed: validation.valid, message: validation.message }
+    }
+    if (targetStep === 4) {
+      return { canProceed: true, message: "" }
+    }
+    return { canProceed: true, message: "" }
+  }
+
+  const handleStepClick = (targetStep: number) => {
+    const validation = canProceedToStep(targetStep)
+    if (!validation.canProceed) {
+      toast.error(validation.message)
+      return
+    }
+    setStep(targetStep)
+  }
+
+  const handleNextStep = () => {
+    const nextStep = Math.min(4, step + 1)
+    const validation = canProceedToStep(nextStep)
+    if (!validation.canProceed) {
+      toast.error(validation.message)
+      return
+    }
+    setStep(nextStep)
+  }
+
+  const getMissingEvaluationFields = () => {
+    const missing: string[] = []
+    
+    // 1. Control Docente
+    if (!formData.docentePresente) missing.push("1. Control Docente - ¿Docente presente?")
+    if (!formData.horarioProgramado) missing.push("1. Control Docente - ¿Horario programado?")
+    if (!formData.interaccion) missing.push("1. Control Docente - ¿Interacción?")
+    
+    // 2. Material Aula Virtual
+    if (!formData.materialCargado) missing.push("2. Material Aula Virtual - ¿Cumple?")
+    
+    // 3. Control de Asistencia
+    if (!formData.asistenciaAmbienteCumple) missing.push("3. Control de Asistencia - ¿Control en ambiente?")
+    if (!formData.asistenciaIntranetCumple) missing.push("3. Control de Asistencia - ¿Control en intranet?")
+    
+    // 4. Control del Avance Silabico
+    if (!formData.temaCoincideVisita) missing.push("4. Control del Avance Silabico - Tema de la visita")
+    if (!formData.temaCoincideAnterior) missing.push("4. Control del Avance Silabico - Tema anterior")
+    if (!formData.ingresoAvanceAulaVirtual) missing.push("4. Control del Avance Silabico - Ingreso del avance")
+    
+    // 5. Guía de Práctica
+    if (!formData.temaProgramadoGuia) missing.push("5. Guía de Práctica - Tema programado")
+    if (!formData.logroEvidenciado) missing.push("5. Guía de Práctica - Logro evidenciado")
+    if (!formData.rubricaEvaluacion) missing.push("5. Guía de Práctica - Rúbrica de evaluación")
+    
+    return missing
+  }
+
+  const isValidDateString = (dateString: string) => {
+    if (!dateString) return false
+    const date = parseDate(dateString)
+    return !Number.isNaN(date.getTime())
+  }
+
+  const isValidTimeString = (timeString: string) => {
+    if (!timeString) return false
+    const { hours, minutes } = parseTime(timeString)
+    return (
+      !Number.isNaN(hours) && !Number.isNaN(minutes) &&
+      hours >= 0 && hours < 24 &&
+      minutes >= 0 && minutes < 60
+    )
+  }
+
+  const validateSubmit = (
+    idSede: number,
+    idDocente: number,
+    idAsignatura: number,
+    idResponsable: number | undefined
+  ) => {
+    const step1Validation = validateStep1()
+    if (!step1Validation.valid) {
+      return step1Validation
+    }
+
+    const step2Validation = validateStep2()
+    if (!step2Validation.valid) {
+      return step2Validation
+    }
+
+    const newErrors: Record<string, string> = {}
+    if (idResponsable == null) {
+      newErrors.responsable = "Responsable no disponible."
+    }
+
+    setErrors(prev => ({ ...prev, ...newErrors }))
+
+    return {
+      valid: Object.keys(newErrors).length === 0,
+      message: Object.values(newErrors)[0] || ""
+    }
+  }
+
   const router = useRouter()
   const [sedes, setSedes] = useState<Sede[]>([])
   const [docentes, setDocentes] = useState<Docente[]>([])
   const [asignaturas, setAsignaturas] = useState<Asignatura[]>([])
   const [isLoadingData, setIsLoadingData] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
-  // Esperar a que el componente se monte en el cliente
+  const fieldError = (field: string) => errors[field] || ""
+  const removeFieldError = (field: string) => {
+    setErrors(prev => {
+      if (!prev[field]) return prev
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
+  }
+
+  // Esperar a que el componente se monte en el cliente y capturar la hora de inicio
   useEffect(() => {
+    const now = getCurrentTimeString()
+    setFormData(prev => ({ ...prev, horaInicio: now }))
     setMounted(true)
   }, [])
 
@@ -358,10 +574,11 @@ export function VisitaForm() {
       const idSede = parseInt(formData.sede)
       const idDocente = parseInt(formData.docente)
       const idAsignatura = parseInt(formData.asignatura)
-      const idResponsable = user?.responsableId || user?.id
+      const idResponsable = user?.responsableId ?? user?.id
 
-      if (!formData.fecha || !formData.horaInicio || !formData.horaTermino || isNaN(idSede) || isNaN(idDocente) || isNaN(idAsignatura) || !idResponsable) {
-        toast.error("Complete todos los campos obligatorios: fecha, horas, sede, docente y asignatura")
+      const validation = validateSubmit(idSede, idDocente, idAsignatura, idResponsable)
+      if (!validation.valid) {
+        toast.error(validation.message)
         setIsSubmitting(false)
         return
       }
@@ -371,17 +588,19 @@ export function VisitaForm() {
         .filter(r => r.descripcion.trim().length > 0)
         .map(r => ({ descripcion: r.descripcion.trim() }))
 
+      const horaInicioPayload = formData.horaInicio || getCurrentTimeString()
+      const horaTerminoPayload = getCurrentTimeString()
       const payload = {
         fechaVisita: formData.fecha,
-        horaInicio: formData.horaInicio,
-        horaTermino: formData.horaTermino,
+        horaInicio: horaInicioPayload,
+        horaTermino: horaTerminoPayload,
         semanaNumero: formData.semana ? parseInt(formData.semana) : null,
         lugarVisita: formData.lugar || null,
         tipoClase: formData.tipoClase || "TEORICA",
         idSede,
         idDocente,
         idAsignatura,
-        idResponsable,
+        idResponsable: idResponsable!,
         requerimientos: requerimientosValidos.length > 0 ? requerimientosValidos : undefined,
       }
       await visitasService.create(payload)
@@ -424,7 +643,7 @@ export function VisitaForm() {
         {steps.map((s, i) => (
           <div key={s.number} className="flex items-center flex-shrink-0">
             <button
-              onClick={() => setStep(s.number)}
+              onClick={() => handleStepClick(s.number)}
               className={cn(
                 "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
                 step === s.number 
@@ -452,17 +671,24 @@ export function VisitaForm() {
       {step === 1 && (
         <Card>
           <CardHeader className="bg-primary/5 border-b">
-            <CardTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5" />
-              Datos Generales de la Visita
-            </CardTitle>
-            <CardDescription>
-              Informacion basica de la visita inopinada - Clases Presenciales
-            </CardDescription>
+            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  Datos Generales de la Visita
+                </CardTitle>
+                <CardDescription>
+                  Informacion basica de la visita inopinada - Clases Presenciales
+                </CardDescription>
+              </div>
+              <div className="rounded-full border border-border bg-muted px-3 py-1 text-sm font-medium">
+                Hora de Inicio: {formData.horaInicio || "--:--"}
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
             {/* Fecha y Hora */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2">
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
                   <Calendar className="h-4 w-4" />
@@ -470,30 +696,17 @@ export function VisitaForm() {
                 </Label>
                 <Input
                   type="date"
+                  min={todayDateString}
                   value={formData.fecha}
                   onChange={(e) => updateField("fecha", e.target.value)}
+                  className={cn(errors.fecha && "border-destructive focus:border-destructive focus:ring-destructive")}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label>Hora de Inicio</Label>
-                <Input
-                  type="time"
-                  value={formData.horaInicio}
-                  onChange={(e) => updateField("horaInicio", e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Hora de Termino</Label>
-                <Input
-                  type="time"
-                  value={formData.horaTermino}
-                  onChange={(e) => updateField("horaTermino", e.target.value)}
-                />
+                {fieldError("fecha") && <p className="text-xs text-destructive mt-1">{fieldError("fecha")}</p>}
               </div>
               <div className="space-y-2">
                 <Label>Semana N</Label>
                 <Select value={formData.semana} onValueChange={(v) => updateField("semana", v)}>
-                  <SelectTrigger>
+                  <SelectTrigger className={cn(errors.semana && "border-destructive focus:border-destructive focus:ring-destructive")}>
                     <SelectValue placeholder="Semana" />
                   </SelectTrigger>
                   <SelectContent>
@@ -502,6 +715,7 @@ export function VisitaForm() {
                     ))}
                   </SelectContent>
                 </Select>
+                {fieldError("semana") && <p className="text-xs text-destructive mt-1">{fieldError("semana")}</p>}
               </div>
             </div>
 
@@ -510,7 +724,7 @@ export function VisitaForm() {
               <div className="space-y-2">
                 <Label>Sede o Filial</Label>
                 <Select value={formData.sede} onValueChange={(v) => updateField("sede", v)} disabled={isLoadingData}>
-                  <SelectTrigger>
+                  <SelectTrigger className={cn(errors.sede && "border-destructive focus:border-destructive focus:ring-destructive")}>
                     <SelectValue placeholder={isLoadingData ? "Cargando..." : "Seleccionar sede"} />
                   </SelectTrigger>
                   <SelectContent>
@@ -519,13 +733,15 @@ export function VisitaForm() {
                     ))}
                   </SelectContent>
                 </Select>
+                {fieldError("sede") && <p className="text-xs text-destructive mt-1">{fieldError("sede")}</p>}
               </div>
               <div className="space-y-2">
                 <Label>Ciclo</Label>
                 <Select value={formData.ciclo} onValueChange={(v) => updateField("ciclo", v)}>
-                  <SelectTrigger>
+                  <SelectTrigger className={cn(errors.ciclo && "border-destructive focus:border-destructive focus:ring-destructive")}>
                     <SelectValue placeholder="Ciclo" />
                   </SelectTrigger>
+                {fieldError("ciclo") && <p className="text-xs text-destructive mt-1">{fieldError("ciclo")}</p>}
                   <SelectContent>
                     {["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"].map((c) => (
                       <SelectItem key={c} value={c}>{c}</SelectItem>
@@ -536,7 +752,7 @@ export function VisitaForm() {
               <div className="space-y-2">
                 <Label>Turno</Label>
                 <Select value={formData.turno} onValueChange={(v) => updateField("turno", v)}>
-                  <SelectTrigger>
+                  <SelectTrigger className={cn(errors.turno && "border-destructive focus:border-destructive focus:ring-destructive")}>
                     <SelectValue placeholder="Turno" />
                   </SelectTrigger>
                   <SelectContent>
@@ -545,6 +761,7 @@ export function VisitaForm() {
                     <SelectItem value="noche">Noche</SelectItem>
                   </SelectContent>
                 </Select>
+                {fieldError("turno") && <p className="text-xs text-destructive mt-1">{fieldError("turno")}</p>}
               </div>
             </div>
 
@@ -556,7 +773,7 @@ export function VisitaForm() {
                   Asignatura
                 </Label>
                 <Select value={formData.asignatura} onValueChange={(v) => updateField("asignatura", v)} disabled={isLoadingData}>
-                  <SelectTrigger>
+                  <SelectTrigger className={cn(errors.asignatura && "border-destructive focus:border-destructive focus:ring-destructive")}>
                     <SelectValue placeholder={isLoadingData ? "Cargando..." : "Seleccionar asignatura"} />
                   </SelectTrigger>
                   <SelectContent>
@@ -565,11 +782,12 @@ export function VisitaForm() {
                     ))}
                   </SelectContent>
                 </Select>
+                {fieldError("asignatura") && <p className="text-xs text-destructive mt-1">{fieldError("asignatura")}</p>}
               </div>
               <div className="space-y-2">
                 <Label>Campo Formativo</Label>
                 <Select value={formData.campoFormativo} onValueChange={(v) => updateField("campoFormativo", v)}>
-                  <SelectTrigger>
+                  <SelectTrigger className={cn(errors.campoFormativo && "border-destructive focus:border-destructive focus:ring-destructive")}>
                     <SelectValue placeholder="Seleccionar campo formativo" />
                   </SelectTrigger>
                   <SelectContent>
@@ -579,6 +797,7 @@ export function VisitaForm() {
                     <SelectItem value="practicas-preprofesionales">Practicas Pre-Profesionales</SelectItem>
                   </SelectContent>
                 </Select>
+                {fieldError("campoFormativo") && <p className="text-xs text-destructive mt-1">{fieldError("campoFormativo")}</p>}
               </div>
             </div>
 
@@ -587,7 +806,7 @@ export function VisitaForm() {
               <div className="space-y-2">
                 <Label>Tipo de Clase</Label>
                 <Select value={formData.tipoClase} onValueChange={(v) => updateField("tipoClase", v)}>
-                  <SelectTrigger>
+                  <SelectTrigger className={cn(errors.tipoClase && "border-destructive focus:border-destructive focus:ring-destructive")}>
                     <SelectValue placeholder="Seleccionar tipo" />
                   </SelectTrigger>
                   <SelectContent>
@@ -596,6 +815,7 @@ export function VisitaForm() {
                     <SelectItem value="MIXTA">Mixta (Teoria + Practica)</SelectItem>
                   </SelectContent>
                 </Select>
+                {fieldError("tipoClase") && <p className="text-xs text-destructive mt-1">{fieldError("tipoClase")}</p>}
               </div>
               <div className="space-y-2">
                 <Label>Hora Practica / Hora Teoria</Label>
@@ -603,7 +823,9 @@ export function VisitaForm() {
                   placeholder="Ej: 2HP / 3HT"
                   value={formData.horaPractica}
                   onChange={(e) => updateField("horaPractica", e.target.value)}
+                  className={cn(errors.horaPractica && "border-destructive focus:border-destructive focus:ring-destructive")}
                 />
+                {fieldError("horaPractica") && <p className="text-xs text-destructive mt-1">{fieldError("horaPractica")}</p>}
               </div>
               <div className="space-y-2">
                 <Label>Lugar de la Visita</Label>
@@ -611,7 +833,9 @@ export function VisitaForm() {
                   placeholder="Ej: Aula 301, Laboratorio de Computo"
                   value={formData.lugar}
                   onChange={(e) => updateField("lugar", e.target.value)}
+                  className={cn(errors.lugar && "border-destructive focus:border-destructive focus:ring-destructive")}
                 />
+                {fieldError("lugar") && <p className="text-xs text-destructive mt-1">{fieldError("lugar")}</p>}
               </div>
             </div>
           </CardContent>
@@ -634,7 +858,7 @@ export function VisitaForm() {
               <div className="mb-4 p-3 bg-muted/50 rounded-lg">
                 <Label className="text-sm text-muted-foreground">Docente:</Label>
                 <Select value={formData.docente} onValueChange={(v) => updateField("docente", v)} disabled={isLoadingData}>
-                  <SelectTrigger className="mt-1">
+                  <SelectTrigger className={cn("mt-1", errors.docente && "border-destructive focus:border-destructive focus:ring-destructive") }>
                     <SelectValue placeholder={isLoadingData ? "Cargando..." : "Seleccionar docente"} />
                   </SelectTrigger>
                   <SelectContent>
@@ -643,6 +867,7 @@ export function VisitaForm() {
                     ))}
                   </SelectContent>
                 </Select>
+                {fieldError("docente") && <p className="text-xs text-destructive mt-1">{fieldError("docente")}</p>}
               </div>
 
               {/* Tabla de evaluacion docente */}
@@ -716,6 +941,11 @@ export function VisitaForm() {
                   </div>
                 </div>
               </div>
+              {(fieldError("docentePresente") || fieldError("horarioProgramado") || fieldError("interaccion")) && (
+                <p className="text-xs text-destructive mt-2">
+                  {fieldError("docentePresente") || fieldError("horarioProgramado") || fieldError("interaccion")}
+                </p>
+              )}
 
               <div className="mt-4 space-y-2">
                 <Label className="text-sm">Observaciones:</Label>
@@ -745,6 +975,7 @@ export function VisitaForm() {
                 onChange={(v) => updateField("materialCargado", v)}
                 options={siNoOptions}
               />
+              {fieldError("materialCargado") && <p className="text-xs text-destructive mt-2">{fieldError("materialCargado")}</p>}
               <div className="space-y-2">
                 <Label className="text-sm">Observaciones:</Label>
                 <Textarea
@@ -825,6 +1056,11 @@ export function VisitaForm() {
                     />
                   </div>
                 </div>
+                {(fieldError("asistenciaAmbienteCumple") || fieldError("asistenciaIntranetCumple")) && (
+                  <p className="text-xs text-destructive mt-2">
+                    {fieldError("asistenciaAmbienteCumple") || fieldError("asistenciaIntranetCumple")}
+                  </p>
+                )}
               </div>
 
               <div className="mt-4 space-y-2">
@@ -1237,7 +1473,7 @@ export function VisitaForm() {
           Anterior
         </Button>
         <Button
-          onClick={() => setStep(Math.min(4, step + 1))}
+          onClick={handleNextStep}
           disabled={step === 4}
         >
           Siguiente

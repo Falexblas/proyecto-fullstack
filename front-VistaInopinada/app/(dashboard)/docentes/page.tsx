@@ -346,7 +346,7 @@ export default function DocentesPage() {
               </p>
             </CardContent>
           </Card>
-          <Card>
+          {/* <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Cumplimiento Prom.</CardTitle>
             </CardHeader>
@@ -361,7 +361,7 @@ export default function DocentesPage() {
                 %
               </p>
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
 
         {/* Table */}
