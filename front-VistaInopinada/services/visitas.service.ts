@@ -91,6 +91,11 @@ export interface VisitaCreateData {
   idDocente: number
   idAsignatura: number
   idResponsable: number
+  evaluacionControlDocente?: EvaluacionControlDocente
+  evaluacionMaterialVirtual?: EvaluacionMaterialVirtual
+  evaluacionAsistenciaEstudiantes?: EvaluacionAsistenciaEstudiantes
+  evaluacionAvanceSilabico?: EvaluacionAvanceSilabico
+  evaluacionGuiaPractica?: EvaluacionGuiaPractica
   requerimientos?: RequerimientoCreateData[]
 }
 

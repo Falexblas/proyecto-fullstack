@@ -590,6 +590,53 @@ export function VisitaForm() {
 
       const horaInicioPayload = formData.horaInicio || getCurrentTimeString()
       const horaTerminoPayload = getCurrentTimeString()
+
+      console.log("DEBUG - formData values:", {
+        docentePresente: formData.docentePresente,
+        horarioProgramado: formData.horarioProgramado,
+        interaccion: formData.interaccion,
+        materialCargado: formData.materialCargado,
+        temaCoincideVisita: formData.temaCoincideVisita,
+        temaCoincideAnterior: formData.temaCoincideAnterior,
+        ingresoAvanceAulaVirtual: formData.ingresoAvanceAulaVirtual
+      })
+
+      // Mapear evaluaciones desde formData
+      const evaluacionControlDocente = {
+        docentePresente: formData.docentePresente === "si" || formData.docentePresente === "cumple",
+        horarioCumplido: formData.horarioProgramado === "si" || formData.horarioProgramado === "cumple",
+        interaccionAdecuada: formData.interaccion === "si" || formData.interaccion === "cumple",
+        actividadDesarrollada: formData.actividad || "NO_APLICA",
+        observaciones: formData.observacionesDocente || ""
+      }
+
+      const evaluacionMaterialVirtual = {
+        cumple: formData.materialCargado === "si" || formData.materialCargado === "cumple",
+        observaciones: formData.observacionesMaterial || ""
+      }
+
+      const evaluacionAsistenciaEstudiantes = {
+        ambienteCumple: (formData.asistenciaAmbienteCumple || "NO_APLICA").toUpperCase() as "CUMPLE" | "NO_CUMPLE" | "NO_APLICA",
+        ambienteObservaciones: formData.asistenciaAmbienteObs || "",
+        intranetCumple: (formData.asistenciaIntranetCumple || "NO_APLICA").toUpperCase() as "CUMPLE" | "NO_CUMPLE" | "NO_APLICA",
+        intranetObservaciones: formData.asistenciaIntranetObs || "",
+        observacionesGenerales: formData.observacionesAsistencia || ""
+      }
+
+      const evaluacionAvanceSilabico = {
+        temaCoincideVisita: formData.temaCoincideVisita === "si" || formData.temaCoincideVisita === "cumple",
+        temaCoincideAnterior: formData.temaCoincideAnterior === "si" || formData.temaCoincideAnterior === "cumple",
+        ingresoAulaVirtual: formData.ingresoAvanceAulaVirtual === "si" || formData.ingresoAvanceAulaVirtual === "cumple",
+        observaciones: formData.observacionesAvance || ""
+      }
+
+      const evaluacionGuiaPractica = {
+        temaProgramadoCumple: (formData.temaProgramadoGuia || "NO_APLICA").toUpperCase() as "CUMPLE" | "NO_CUMPLE" | "NO_APLICA",
+        logroEvidenciado: (formData.logroEvidenciado || "NO_APLICA").toUpperCase() as "CUMPLE" | "NO_CUMPLE" | "NO_APLICA",
+        rubricaEvaluacion: (formData.rubricaEvaluacion || "NO_APLICA").toUpperCase() as "CUMPLE" | "NO_CUMPLE" | "NO_APLICA",
+        observaciones: formData.observacionesGuia || ""
+      }
+
       const payload = {
         fechaVisita: formData.fecha,
         horaInicio: horaInicioPayload,
@@ -601,6 +648,11 @@ export function VisitaForm() {
         idDocente,
         idAsignatura,
         idResponsable: idResponsable!,
+        evaluacionControlDocente,
+        evaluacionMaterialVirtual,
+        evaluacionAsistenciaEstudiantes,
+        evaluacionAvanceSilabico,
+        evaluacionGuiaPractica,
         requerimientos: requerimientosValidos.length > 0 ? requerimientosValidos : undefined,
       }
       await visitasService.create(payload)
