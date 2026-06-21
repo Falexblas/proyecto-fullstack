@@ -18,9 +18,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
-import { CheckCircle2, XCircle, Clock, MoreHorizontal, Eye, FileText, AlertTriangle } from "lucide-react"
+import { CheckCircle2, Clock, MoreHorizontal, Eye, FileText, AlertTriangle } from "lucide-react"
 import Link from "next/link"
-import { visitasService, type Visita } from "@/services/visitas.service"
+import { visitasService, type Visita, type VisitaFilterData } from "@/services/visitas.service"
+import { type FiltersState } from "@/components/visitas/visitas-filters"
 import { useAuth } from "@/lib/auth-context"
 import { toast } from "sonner"
 
@@ -33,9 +34,10 @@ const estadoConfig: Record<string, { label: string; icon: typeof CheckCircle2; c
 
 interface VisitasTableProps {
   showOnlyMine?: boolean
+  filters?: FiltersState
 }
 
-export function VisitasTable({ showOnlyMine = false }: VisitasTableProps) {
+export function VisitasTable({ showOnlyMine = false, filters }: VisitasTableProps) {
   const { user } = useAuth()
   const [visitas, setVisitas] = useState<Visita[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -48,16 +50,31 @@ export function VisitasTable({ showOnlyMine = false }: VisitasTableProps) {
         setError(null)
         let data: Visita[] = []
 
+        // Preparar filtros
+        const filterData: VisitaFilterData = {
+          busqueda: filters?.busqueda || null,
+          idSede: filters?.idSede ? parseInt(filters.idSede) : null,
+          estado: filters?.estado || null,
+          // single fecha: if provided, use as both fechaDesde and fechaHasta
+          fechaDesde: filters?.fecha ? filters.fecha : null,
+          fechaHasta: filters?.fecha ? filters.fecha : null,
+        }
+
         if (user?.rol === "DOCENTE") {
-          data = await visitasService.getMisVisitasDocente()
+          if (showOnlyMine) {
+            data = await visitasService.filtrarDocente(filterData)
+          } else {
+            data = await visitasService.getMisVisitasDocente()
+          }
         } else if (user?.rol === "AUDITOR") {
-          data = await visitasService.getMisVisitasAuditor()
+          data = await visitasService.filtrarAuditor(filterData)
         } else if (user?.rol === "ADMIN") {
-          data = await visitasService.getAll()
+          data = await visitasService.filtrar(filterData)
         }
 
         setVisitas(data)
-      } catch {
+      } catch (err) {
+        console.error("Error al cargar visitas:", err)
         setError("No se pudieron cargar las visitas.")
         toast.error("Error al cargar las visitas")
       } finally {
@@ -68,7 +85,7 @@ export function VisitasTable({ showOnlyMine = false }: VisitasTableProps) {
     if (user) {
       fetchVisitas()
     }
-  }, [user])
+  }, [user, filters, showOnlyMine])
 
   const handleGenerarPdf = async (id: number) => {
     try {
@@ -145,7 +162,7 @@ export function VisitasTable({ showOnlyMine = false }: VisitasTableProps) {
         <ClipboardList className="h-10 w-10 text-muted-foreground mb-4" />
         <h3 className="text-lg font-medium">No hay visitas registradas</h3>
         <p className="text-sm text-muted-foreground mt-1">
-          {showOnlyMine ? "Aun no tienes visitas registradas." : "No se encontraron visitas en el sistema."}
+          {showOnlyMine ? "Aun no tienes visitas registradas." : "No se encontraron visitas con los filtros aplicados."}
         </p>
       </div>
     )
@@ -255,4 +272,3 @@ function ClipboardList(props: React.SVGProps<SVGSVGElement>) {
     </svg>
   )
 }
-

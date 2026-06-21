@@ -99,6 +99,14 @@ export interface VisitaCreateData {
   requerimientos?: RequerimientoCreateData[]
 }
 
+export interface VisitaFilterData {
+  busqueda?: string | null
+  idSede?: number | null
+  estado?: string | null
+  fechaDesde?: string | null
+  fechaHasta?: string | null
+}
+
 export const visitasService = {
   getAll: async (): Promise<Visita[]> => {
     const response = await api.get<Visita[]>("/visitas")
@@ -149,10 +157,18 @@ export const visitasService = {
     return response.data
   },
 
-  generarPdf: async (id: number): Promise<Blob> => {
-    const response = await api.get(`/visitas/${id}/pdf`, {
-      responseType: "blob",
-    })
+  filtrar: async (filters: VisitaFilterData): Promise<Visita[]> => {
+    const response = await api.post<Visita[]>("/visitas/filtrar", filters)
+    return response.data
+  },
+
+  filtrarAuditor: async (filters: VisitaFilterData): Promise<Visita[]> => {
+    const response = await api.post<Visita[]>("/visitas/filtrar-auditor", filters)
+    return response.data
+  },
+
+  filtrarDocente: async (filters: VisitaFilterData): Promise<Visita[]> => {
+    const response = await api.post<Visita[]>("/visitas/filtrar-docente", filters)
     return response.data
   },
 }

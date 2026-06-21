@@ -1,15 +1,23 @@
 "use client"
 
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Plus } from "lucide-react"
 import Link from "next/link"
-import { VisitasFilters } from "@/components/visitas/visitas-filters"
+import { VisitasFilters, type FiltersState } from "@/components/visitas/visitas-filters"
 import { VisitasTable } from "@/components/visitas/visitas-table"
 import { useAuth } from "@/lib/auth-context"
 
 export default function VisitasPage() {
   const { user } = useAuth()
+  const [filters, setFilters] = useState<FiltersState>({
+    busqueda: "",
+    idSede: "",
+    estado: "",
+    fecha: "",
+  })
+
   const isDocente = user?.rol === "DOCENTE"
   const canCreateVisita = user?.rol === "AUDITOR"
 
@@ -52,8 +60,8 @@ export default function VisitasPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {!isDocente && <VisitasFilters />}
-          <VisitasTable showOnlyMine={isDocente} />
+          {!isDocente && <VisitasFilters onFiltersChange={setFilters} />}
+          <VisitasTable showOnlyMine={isDocente} filters={filters} />
         </CardContent>
       </Card>
     </div>

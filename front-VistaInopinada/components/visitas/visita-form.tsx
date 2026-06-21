@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -223,7 +223,11 @@ function SignaturePad({ label, value, onChange }: SignaturePadProps) {
   )
 }
 
-export function VisitaForm() {
+interface VisitaFormProps {
+  onDirtyChange?: (dirty: boolean) => void
+}
+
+export function VisitaForm({ onDirtyChange }: VisitaFormProps) {
   const [step, setStep] = useState(1)
   const { user } = useAuth()
   const [mounted, setMounted] = useState(false)
@@ -364,14 +368,6 @@ export function VisitaForm() {
       if (selectedDate.getTime() < today.getTime()) {
         newErrors.fecha = "La fecha de visita no puede ser anterior a hoy."
       }
-
-      const horaInicio = isValidTimeString(formData.horaInicio) ? formData.horaInicio : getCurrentTimeString()
-      const { hours, minutes } = parseTime(horaInicio)
-      const startDateTime = new Date(selectedDate)
-      startDateTime.setHours(hours, minutes, 0, 0)
-      if (selectedDate.getTime() === today.getTime() && startDateTime.getTime() < Date.now()) {
-        newErrors.fecha = "La fecha y hora de inicio no pueden ser anteriores a la actual cuando la visita es hoy."
-      }
     }
 
     setErrors(newErrors)
@@ -388,6 +384,7 @@ export function VisitaForm() {
     if (!formData.docentePresente) newErrors.docentePresente = "Selecciona si el docente estuvo presente."
     if (!formData.horarioProgramado) newErrors.horarioProgramado = "Selecciona si el horario fue programado."
     if (!formData.interaccion) newErrors.interaccion = "Selecciona si la interacción fue adecuada."
+    if (!formData.actividad || !formData.actividad.trim()) newErrors.actividad = "Describe la actividad."
     if (!formData.materialCargado) newErrors.materialCargado = "Selecciona el estado del material virtual."
     if (!formData.asistenciaAmbienteCumple) newErrors.asistenciaAmbienteCumple = "Selecciona el control en ambiente."
     if (!formData.asistenciaIntranetCumple) newErrors.asistenciaIntranetCumple = "Selecciona el control en intranet."
@@ -531,6 +528,39 @@ export function VisitaForm() {
       return next
     })
   }
+
+  const isFormDirty = useMemo(() => {
+    const {
+      horaInicio,
+      horaTermino,
+      firmaDocente,
+      firmaResponsable,
+      ...rest
+    } = formData as { [key: string]: any }
+
+    return Object.entries(rest).some(([key, value]) => {
+      if (key === "requerimientos") {
+        return Array.isArray(value) && value.some((item) => item.descripcion?.trim().length > 0)
+      }
+      return typeof value === "string" ? value.trim().length > 0 : Boolean(value)
+    })
+  }, [formData])
+
+  useEffect(() => {
+    onDirtyChange?.(isFormDirty)
+  }, [isFormDirty, onDirtyChange])
+
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!isFormDirty) return
+      event.preventDefault()
+      event.returnValue = ""
+      return ""
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload)
+  }, [isFormDirty])
 
   // Esperar a que el componente se monte en el cliente y capturar la hora de inicio
   useEffect(() => {
@@ -988,8 +1018,9 @@ export function VisitaForm() {
                       placeholder="Describir actividad"
                       value={formData.actividad}
                       onChange={(e) => updateField("actividad", e.target.value)}
-                      className="text-sm"
+                      className={cn("text-sm", errors.actividad && "border-destructive focus:border-destructive focus:ring-destructive")}
                     />
+                    {fieldError("actividad") && <p className="text-xs text-destructive mt-2">{fieldError("actividad")}</p>}
                   </div>
                 </div>
               </div>
@@ -1225,6 +1256,11 @@ export function VisitaForm() {
                   className="min-h-[60px]"
                 />
               </div>
+              {(fieldError("temaCoincideVisita") || fieldError("temaCoincideAnterior") || fieldError("ingresoAvanceAulaVirtual")) && (
+                <p className="text-xs text-destructive mt-2">
+                  {fieldError("temaCoincideVisita") || fieldError("temaCoincideAnterior") || fieldError("ingresoAvanceAulaVirtual")}
+                </p>
+              )}
             </CardContent>
           </Card>
 
@@ -1345,6 +1381,11 @@ export function VisitaForm() {
                   className="min-h-[60px]"
                 />
               </div>
+              {(fieldError("temaProgramadoGuia") || fieldError("logroEvidenciado") || fieldError("rubricaEvaluacion")) && (
+                <p className="text-xs text-destructive mt-2">
+                  {fieldError("temaProgramadoGuia") || fieldError("logroEvidenciado") || fieldError("rubricaEvaluacion")}
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>

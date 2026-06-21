@@ -2,6 +2,7 @@ package com.visitas.backend_api.service;
 
 import com.visitas.backend_api.dto.RequerimientoCreateDTO;
 import com.visitas.backend_api.dto.VisitaCreateDTO;
+import com.visitas.backend_api.dto.VisitaFilterDTO;
 import com.visitas.backend_api.dto.VisitaResponseDTO;
 import com.visitas.backend_api.entity.AsignaturaEntity;
 import com.visitas.backend_api.entity.RequerimientoVisitaEntity;
@@ -40,6 +41,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import com.visitas.backend_api.enums.EstadoVisita;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -325,6 +327,73 @@ public class VisitaService {
     public List<VisitaResponseDTO> listarMisVisitasComoAuditor() {
         Integer currentUserId = authService.getCurrentUserId();
         return listarPorAuditor(currentUserId);
+    }
+
+    public List<VisitaResponseDTO> filtrarVisitas(VisitaFilterDTO filter) {
+        EstadoVisita estadoEnum = null;
+        if (filter.getEstado() != null && !filter.getEstado().isBlank()) {
+            try {
+                estadoEnum = EstadoVisita.valueOf(filter.getEstado().toUpperCase());
+            } catch (IllegalArgumentException ex) {
+                estadoEnum = null;
+            }
+        }
+
+        return visitaRepository.filtrarVisitas(
+                filter.getBusqueda(),
+                filter.getIdSede(),
+                estadoEnum,
+                filter.getFechaDesde(),
+                filter.getFechaHasta()
+        ).stream()
+                .map(visitaMapper::toResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    public List<VisitaResponseDTO> filtrarVisitasAuditor(VisitaFilterDTO filter) {
+        Integer currentUserId = authService.getCurrentUserId();
+        EstadoVisita estadoEnum = null;
+        if (filter.getEstado() != null && !filter.getEstado().isBlank()) {
+            try {
+                estadoEnum = EstadoVisita.valueOf(filter.getEstado().toUpperCase());
+            } catch (IllegalArgumentException ex) {
+                estadoEnum = null;
+            }
+        }
+
+        return visitaRepository.filtrarVisitasPorAuditor(
+                currentUserId,
+                filter.getBusqueda(),
+                filter.getIdSede(),
+                estadoEnum,
+                filter.getFechaDesde(),
+                filter.getFechaHasta()
+        ).stream()
+                .map(visitaMapper::toResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    public List<VisitaResponseDTO> filtrarVisitasDocente(VisitaFilterDTO filter) {
+        Integer currentDocenteId = authService.getCurrentDocenteId();
+        EstadoVisita estadoEnum = null;
+        if (filter.getEstado() != null && !filter.getEstado().isBlank()) {
+            try {
+                estadoEnum = EstadoVisita.valueOf(filter.getEstado().toUpperCase());
+            } catch (IllegalArgumentException ex) {
+                estadoEnum = null;
+            }
+        }
+
+        return visitaRepository.filtrarVisitasPorDocente(
+                currentDocenteId,
+                filter.getBusqueda(),
+                filter.getIdSede(),
+                estadoEnum,
+                filter.getFechaDesde(),
+                filter.getFechaHasta()
+        ).stream()
+                .map(visitaMapper::toResponseDTO)
+                .collect(Collectors.toList());
     }
 
     public DashboardAuditorStatsDTO obtenerEstadisticasDashboardAuditor() {

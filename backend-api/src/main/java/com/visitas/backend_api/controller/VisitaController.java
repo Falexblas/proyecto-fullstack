@@ -2,6 +2,7 @@ package com.visitas.backend_api.controller;
 
 import com.visitas.backend_api.dto.DashboardAuditorStatsDTO;
 import com.visitas.backend_api.dto.VisitaCreateDTO;
+import com.visitas.backend_api.dto.VisitaFilterDTO;
 import com.visitas.backend_api.dto.VisitaResponseDTO;
 import com.visitas.backend_api.entity.VisitaInopinadaEntity;
 import com.visitas.backend_api.repository.VisitaInopinadaEntityRepository;
@@ -42,6 +43,24 @@ public class VisitaController {
     @PreAuthorize("hasRole('AUDITOR')")
     public ResponseEntity<List<VisitaResponseDTO>> listarMisVisitasComoAuditor() {
         return ResponseEntity.ok(visitaService.listarMisVisitasComoAuditor());
+    }
+
+    @PostMapping("/filtrar")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<VisitaResponseDTO>> filtrarVisitas(@RequestBody VisitaFilterDTO filter) {
+        return ResponseEntity.ok(visitaService.filtrarVisitas(filter));
+    }
+
+    @PostMapping("/filtrar-auditor")
+    @PreAuthorize("hasRole('AUDITOR')")
+    public ResponseEntity<List<VisitaResponseDTO>> filtrarVisitasAuditor(@RequestBody VisitaFilterDTO filter) {
+        return ResponseEntity.ok(visitaService.filtrarVisitasAuditor(filter));
+    }
+
+    @PostMapping("/filtrar-docente")
+    @PreAuthorize("hasRole('DOCENTE')")
+    public ResponseEntity<List<VisitaResponseDTO>> filtrarVisitasDocente(@RequestBody VisitaFilterDTO filter) {
+        return ResponseEntity.ok(visitaService.filtrarVisitasDocente(filter));
     }
 
     // Endpoint temporal para depuración - REMOVER EN PRODUCCION

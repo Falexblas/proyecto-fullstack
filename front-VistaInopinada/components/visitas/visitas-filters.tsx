@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import {
@@ -9,65 +10,153 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Search, Filter, Download } from "lucide-react"
+import { Search, Filter, Download, X } from "lucide-react"
+import { sedesService, type Sede } from "@/services/sedes.service"
+import { toast } from "sonner"
 
-export function VisitasFilters() {
+export interface VisitasFiltersProps {
+  onFiltersChange?: (filters: FiltersState) => void
+}
+
+export interface FiltersState {
+  busqueda: string
+  idSede: string
+  estado: string
+  fecha: string
+}
+
+export function VisitasFilters({ onFiltersChange }: VisitasFiltersProps) {
+  const [sedes, setSedes] = useState<Sede[]>([])
+  const [isLoadingSedes, setIsLoadingSedes] = useState(true)
+  const [filters, setFilters] = useState<FiltersState>({
+    busqueda: "",
+    idSede: "",
+    estado: "",
+    fecha: "",
+  })
+
+  // Cargar sedes
+  useEffect(() => {
+    async function loadSedes() {
+      try {
+        const data = await sedesService.getAll()
+        setSedes(data)
+      } catch (error) {
+        console.error("Error al cargar sedes:", error)
+        toast.error("No se pudieron cargar las sedes")
+      } finally {
+        setIsLoadingSedes(false)
+      }
+    }
+
+    loadSedes()
+  }, [])
+
+  const handleFilterChange = (key: keyof FiltersState, value: string) => {
+    // Si el valor es "all" o "none", convertir a string vacío para los filtros
+    const actualValue = (value === "all" || value === "none") ? "" : value
+    const newFilters = { ...filters, [key]: actualValue }
+    setFilters(newFilters)
+    onFiltersChange?.(newFilters)
+  }
+
+  const handleReset = () => {
+    const emptyFilters: FiltersState = {
+      busqueda: "",
+      idSede: "",
+      estado: "",
+      fecha: "",
+    }
+    setFilters(emptyFilters)
+    onFiltersChange?.(emptyFilters)
+  }
+
+  const hasActiveFilters = Object.values(filters).some(v => v !== "")
+
   return (
-    <div className="flex flex-col lg:flex-row gap-4">
-      {/* Search */}
-      <div className="relative flex-1">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por docente, asignatura o ID..."
-          className="pl-10"
-        />
+    <div className="space-y-4">
+      <div className="flex flex-col lg:flex-row gap-4">
+        {/* Search */}
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por docente, asignatura o ID..."
+            className="pl-10"
+            value={filters.busqueda}
+            onChange={(e) => handleFilterChange("busqueda", e.target.value)}
+          />
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-2">
+          {hasActiveFilters && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleReset}
+              title="Limpiar filtros"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+          <Button variant="outline" size="icon">
+            <Download className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2">
-        <Select>
-          <SelectTrigger className="w-full sm:w-[150px]">
+      {/* Filters Row */}
+      <div className="flex flex-col md:flex-row gap-4">
+        {/* Sede Filter */}
+        <Select
+          value={filters.idSede ? filters.idSede : "all"}
+          onValueChange={(value) => handleFilterChange("idSede", value)}
+        >
+          <SelectTrigger className="w-full md:w-[180px]">
             <SelectValue placeholder="Sede" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todas</SelectItem>
-            <SelectItem value="lima-centro">Lima Centro</SelectItem>
-            <SelectItem value="lima-norte">Lima Norte</SelectItem>
-            <SelectItem value="lima-sur">Lima Sur</SelectItem>
+            <SelectItem value="all">Todas las sedes</SelectItem>
+            {isLoadingSedes ? (
+              <SelectItem value="loading" disabled>
+                Cargando...
+              </SelectItem>
+            ) : (
+              sedes.map((sede) => (
+                <SelectItem key={sede.id} value={String(sede.id)}>
+                  {sede.nombre}
+                </SelectItem>
+              ))
+            )}
           </SelectContent>
         </Select>
 
-        <Select>
-          <SelectTrigger className="w-full sm:w-[150px]">
+        {/* Estado Filter */}
+        <Select
+          value={filters.estado ? filters.estado : "all"}
+          onValueChange={(value) => handleFilterChange("estado", value)}
+        >
+          <SelectTrigger className="w-full md:w-[180px]">
             <SelectValue placeholder="Estado" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="cumple">Cumple</SelectItem>
-            <SelectItem value="parcial">Parcial</SelectItem>
-            <SelectItem value="no_cumple">No Cumple</SelectItem>
+            <SelectItem value="all">Todos los estados</SelectItem>
+            <SelectItem value="BORRADOR">Borrador</SelectItem>
+            <SelectItem value="FIRMADA_DOCENTE">Firmada Docente</SelectItem>
+            <SelectItem value="COMPLETADA">Completada</SelectItem>
+            <SelectItem value="AUDITADA">Auditada</SelectItem>
           </SelectContent>
         </Select>
 
-        <Select>
-          <SelectTrigger className="w-full sm:w-[150px]">
-            <SelectValue placeholder="Periodo" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="today">Hoy</SelectItem>
-            <SelectItem value="week">Esta semana</SelectItem>
-            <SelectItem value="month">Este mes</SelectItem>
-            <SelectItem value="semester">Este semestre</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Button variant="outline" size="icon">
-          <Filter className="h-4 w-4" />
-        </Button>
-
-        <Button variant="outline" size="icon">
-          <Download className="h-4 w-4" />
-        </Button>
+        {/* Fecha */}
+        <input
+          type="date"
+          className="px-3 py-2 border border-input rounded-md bg-background text-sm w-full md:w-[180px]"
+          placeholder="Fecha"
+          value={filters.fecha}
+          onChange={(e) => handleFilterChange("fecha", e.target.value)}
+          title="Fecha"
+        />
       </div>
     </div>
   )
