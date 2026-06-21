@@ -5,9 +5,12 @@ import com.visitas.backend_api.dto.VisitaCreateDTO;
 import com.visitas.backend_api.dto.VisitaResponseDTO;
 import com.visitas.backend_api.entity.VisitaInopinadaEntity;
 import com.visitas.backend_api.repository.VisitaInopinadaEntityRepository;
+import com.visitas.backend_api.service.PdfService;
 import com.visitas.backend_api.service.VisitaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -21,6 +24,7 @@ public class VisitaController {
 
     private final VisitaService visitaService;
     private final VisitaInopinadaEntityRepository visitaRepository;
+    private final PdfService pdfService;
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -115,5 +119,19 @@ public class VisitaController {
     public ResponseEntity<DashboardAuditorStatsDTO> obtenerEstadisticasDashboard() {
         DashboardAuditorStatsDTO stats = visitaService.obtenerEstadisticasDashboardAuditor();
         return ResponseEntity.ok(stats);
+    }
+
+    @GetMapping("/{id}/pdf")
+    @PreAuthorize("hasAnyRole('AUDITOR', 'DOCENTE', 'ADMIN')")
+    public ResponseEntity<byte[]> generarPdfVisita(@PathVariable Integer id) throws Exception {
+        byte[] pdfBytes = pdfService.generarPdfVisita(id);
+        
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("attachment", "visita-" + id + ".pdf");
+        
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
     }
 }

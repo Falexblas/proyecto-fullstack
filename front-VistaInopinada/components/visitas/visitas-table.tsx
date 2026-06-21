@@ -70,6 +70,23 @@ export function VisitasTable({ showOnlyMine = false }: VisitasTableProps) {
     }
   }, [user])
 
+  const handleGenerarPdf = async (id: number) => {
+    try {
+      const blob = await visitasService.generarPdf(id)
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = `visita-${id}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+      toast.success("PDF generado exitosamente")
+    } catch {
+      toast.error("Error al generar el PDF")
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -193,7 +210,7 @@ export function VisitasTable({ showOnlyMine = false }: VisitasTableProps) {
                           Ver detalle
                         </Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleGenerarPdf(visita.id)}>
                         <FileText className="h-4 w-4 mr-2" />
                         Generar PDF
                       </DropdownMenuItem>

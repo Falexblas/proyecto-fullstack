@@ -148,4 +148,11 @@ export const visitasService = {
     })
     return response.data
   },
+
+  generarPdf: async (id: number): Promise<Blob> => {
+    const response = await api.get(`/visitas/${id}/pdf`, {
+      responseType: "blob",
+    })
+    return response.data
+  },
 }

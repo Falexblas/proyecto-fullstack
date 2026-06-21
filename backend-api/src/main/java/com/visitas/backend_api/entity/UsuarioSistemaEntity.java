@@ -51,7 +51,7 @@ public class UsuarioSistemaEntity {
     @Column(name = "estado")
     private Boolean estado = true;
 
-    @Column(name = "firma_hash", length = 500)
+    @Column(name = "firma_hash", columnDefinition = "TEXT")
     private String firmaHash;
 
     @Column(name = "created_at", updatable = false)

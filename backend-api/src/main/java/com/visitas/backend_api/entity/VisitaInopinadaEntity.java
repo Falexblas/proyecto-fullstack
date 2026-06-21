@@ -75,10 +75,10 @@ public class VisitaInopinadaEntity {
     @Column(name = "estado_visita")
     private EstadoVisita estadoVisita = EstadoVisita.BORRADOR;
 
-    @Column(name = "firma_docente_hash", length = 64)
+    @Column(name = "firma_docente_hash", columnDefinition = "TEXT")
     private String firmaDocenteHash;
 
-    @Column(name = "firma_responsable_hash", length = 64)
+    @Column(name = "firma_responsable_hash", columnDefinition = "TEXT")
     private String firmaResponsableHash;
 
     @Column(name = "fecha_firma_docente")

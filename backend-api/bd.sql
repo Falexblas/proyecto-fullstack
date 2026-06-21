@@ -71,7 +71,7 @@ CREATE TABLE UsuarioSistema (
     id_docente INT NULL,
     id_responsable INT NULL,
     estado BOOLEAN DEFAULT TRUE,
-    firma_hash TEXT NULL,  -- ✅ Columna agregada directamente
+    firma_hash LONGTEXT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (id_rol) REFERENCES Rol(id_rol) ON DELETE RESTRICT,
     FOREIGN KEY (id_docente) REFERENCES Docente(id_docente) ON DELETE SET NULL,
@@ -99,8 +99,8 @@ CREATE TABLE VisitaInopinada (
     
     estado_visita ENUM('BORRADOR', 'FIRMADA_DOCENTE', 'COMPLETADA', 'AUDITADA') DEFAULT 'BORRADOR',
     
-    firma_docente_hash TEXT NULL,        -- ✅ Modificado de VARCHAR(64) a TEXT
-    firma_responsable_hash TEXT NULL,    -- ✅ Modificado de VARCHAR(64) a TEXT
+    firma_docente_hash LONGTEXT NULL,
+    firma_responsable_hash LONGTEXT NULL,
     fecha_firma_docente DATETIME NULL,
     fecha_firma_responsable DATETIME NULL,
     
@@ -249,132 +249,3 @@ INSERT INTO UsuarioSistema (email, password_hash, nombres, apellidos, id_rol, id
 ('admin@universidad.edu.pe', '$2a$10$JnWtYwpitWzonOVCuqGWvuzTGCJVJFHyNXks5d.BkQTaJxmBU5cMS', 'ADMINISTRADOR', 'SISTEMAS', 1, NULL, NULL, TRUE, NULL),
 ('v.guadalupe@universidad.edu.pe', '$2a$10$JnWtYwpitWzonOVCuqGWvuzTGCJVJFHyNXks5d.BkQTaJxmBU5cMS', 'VICTOR', 'GUADALUPE MORI', 2, NULL, 1, TRUE, NULL),
 ('m.huerta@universidad.edu.pe', '$2a$10$JnWtYwpitWzonOVCuqGWvuzTGCJVJFHyNXks5d.BkQTaJxmBU5cMS', 'MIGUEL ANGEL', 'HUERTA ROJAS', 3, 1, NULL, TRUE, NULL);
-
--- ============================================================================
--- 5. INSERCIÓN DE VISITAS, EVALUACIONES Y REQUERIMIENTOS
--- ============================================================================
-
--- 5.1 Visita COMPLETADA
-INSERT INTO VisitaInopinada (
-    fecha_visita, hora_inicio, hora_termino, semana_numero, lugar_visita, tipo_clase,
-    id_sede, id_docente, id_asignatura, id_responsable, id_usuario_auditor,
-    estado_visita, firma_docente_hash, firma_responsable_hash, fecha_firma_docente, fecha_firma_responsable
-) VALUES (
-    '2026-05-05', '19:00:00', '20:30:00', 12, 'LABORATORIO DE CÓMPUTO 3', 'PRACTICA',
-    1, 1, 2, 1, 2,
-    'COMPLETADA', 
-    'hash_firma_docente_simulado_12345', 
-    'hash_firma_auditor_simulado_67890',
-    '2026-05-05 20:35:00', '2026-05-05 20:40:00'
-);
-SET @id_visita_completada = LAST_INSERT_ID();
-
--- Evaluaciones Visita Completada
-INSERT INTO EvaluacionControlDocente (id_visita, docente_presente, horario_cumplido, interaccion_adecuada, actividad_desarrollada, observaciones) 
-VALUES (@id_visita_completada, TRUE, TRUE, TRUE, 'Desarrollo de práctica calificada N°2 sobre Normalización', 'El docente mostró puntualidad y dominio del tema.');
-
-INSERT INTO EvaluacionMaterialVirtual (id_visita, cumple, observaciones) 
-VALUES (@id_visita_completada, TRUE, 'Guía y dataset cargados en aula virtual con 24h de anticipación.');
-
--- ✅ EvaluacionAsistenciaEstudiantes ADAPTADA a la nueva estructura
-INSERT INTO EvaluacionAsistenciaEstudiantes (
-    id_visita, ambiente_cumple, ambiente_observaciones, intranet_cumple, intranet_observaciones, observaciones_generales
-) VALUES (
-    @id_visita_completada, 
-    'CUMPLE', 'Aulas con ventilación, iluminación y mobiliario operativo.', 
-    'CUMPLE', 'Listas cotejadas correctamente en intranet. Coincidencia 100%.', 
-    'Se recomienda digitalizar el registro de justificados para evitar retrasos en reportes.'
-);
-
-INSERT INTO EvaluacionAvanceSilabico (id_visita, tema_coincide_visita, tema_coincide_anterior, ingreso_aula_virtual, observaciones) 
-VALUES (@id_visita_completada, TRUE, TRUE, TRUE, 'El tema "Normalización hasta 3FN" coincide con el sílabo semana 12.');
-
-INSERT INTO EvaluacionGuiaPractica (id_visita, tema_programado_cumple, logro_evidenciado, rubrica_evaluacion, observaciones) 
-VALUES (@id_visita_completada, 'CUMPLE', 'CUMPLE', 'CUMPLE', 'Trabajo en equipos con evidencia de resolución de casos prácticos.');
-
--- Requerimientos del Evaluador → Docente
-INSERT INTO RequerimientoVisita (id_visita, descripcion, fecha_solicitud, estado, respuesta, fecha_respuesta) 
-VALUES (@id_visita_completada, 'Actualizar guía práctica N°3 en aula virtual con ejercicios BCNF.', '2026-05-05', 'PENDIENTE', NULL, NULL);
-SET @req1 = LAST_INSERT_ID();
-
-INSERT INTO RequerimientoVisita (id_visita, descripcion, fecha_solicitud, estado, respuesta, fecha_respuesta) 
-VALUES (@id_visita_completada, 'Regularizar en intranet la asistencia de 3 estudiantes faltantes antes de 48h.', '2026-05-05', 'EN_PROCESO', 'Regularización completada. Captura de intranet adjunta.', '2026-05-06');
-SET @req2 = LAST_INSERT_ID();
-
-INSERT INTO RequerimientoVisita (id_visita, descripcion, fecha_solicitud, estado, respuesta, fecha_respuesta) 
-VALUES (@id_visita_completada, 'Adjuntar rúbricas evaluadas de la PC2 al repositorio institucional.', '2026-05-05', 'ATENDIDO', 'Rúbricas cargadas: https://repositorio.edu.pe/handle/1234/5678', '2026-05-07');
-SET @req3 = LAST_INSERT_ID();
-
--- ✅ Evidencias de Requerimientos (Nueva Tabla)
-INSERT INTO EvidenciaRequerimiento (id_requerimiento, nombre_archivo, tipo_archivo, ruta_archivo, tamaño_bytes, descripcion, fecha_carga) VALUES
-(@req2, 'captura_intranet_regularizada.jpg', 'image/jpeg', '/evidencias/2026/05/captura_intranet.jpg', 1048576, 'Evidencia de regularización en intranet', '2026-05-06 14:20:00'),
-(@req3, 'rubrica_pc2_normalizacion.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '/evidencias/2026/05/rubrica_pc2.xlsx', 45056, 'Rúbrica con calificaciones y observaciones por estudiante', '2026-05-07 09:15:00');
-
-
--- 5.2 Visita en BORRADOR
-INSERT INTO VisitaInopinada (
-    fecha_visita, hora_inicio, hora_termino, semana_numero, lugar_visita, tipo_clase,
-    id_sede, id_docente, id_asignatura, id_responsable, id_usuario_auditor,
-    estado_visita
-) VALUES (
-    '2026-05-06', '18:00:00', '19:30:00', 12, 'AULA 402', 'TEORICA',
-    1, 1, 1, 1, 2,
-    'BORRADOR'
-);
-SET @id_visita_borrador = LAST_INSERT_ID();
-
--- Evaluaciones Vacías/Default para Borrador
-INSERT INTO EvaluacionControlDocente (id_visita, docente_presente, horario_cumplido, interaccion_adecuada) 
-VALUES (@id_visita_borrador, FALSE, FALSE, FALSE);
-
-INSERT INTO EvaluacionMaterialVirtual (id_visita, cumple) 
-VALUES (@id_visita_borrador, FALSE);
-
-INSERT INTO EvaluacionAsistenciaEstudiantes (id_visita, observaciones_generales) 
-VALUES (@id_visita_borrador, 'Pendiente de registro por auditor.');
-
-INSERT INTO EvaluacionAvanceSilabico (id_visita, tema_coincide_visita, tema_coincide_anterior, ingreso_aula_virtual) 
-VALUES (@id_visita_borrador, FALSE, FALSE, FALSE);
-
-INSERT INTO EvaluacionGuiaPractica (id_visita, tema_programado_cumple, logro_evidenciado, rubrica_evaluacion) 
-VALUES (@id_visita_borrador, 'NO_APLICA', 'NO_APLICA', 'NO_APLICA');
-
--- Requerimientos Borrador (Observaciones preliminares)
-INSERT INTO RequerimientoVisita (id_visita, descripcion, fecha_solicitud, estado) 
-VALUES (@id_visita_borrador, 'Incluir indicadores de logro específicos en la planificación de cierre de sesión.', '2026-05-06', 'PENDIENTE');
-SET @req4 = LAST_INSERT_ID();
-
-INSERT INTO RequerimientoVisita (id_visita, descripcion, fecha_solicitud, estado) 
-VALUES (@id_visita_borrador, 'Evidenciar en aula virtual la retroalimentación de la actividad anterior.', '2026-05-06', 'PENDIENTE');
-SET @req5 = LAST_INSERT_ID();
-
--- ============================================================================
--- 6. VERIFICACIÓN FINAL
--- ============================================================================
-
-SELECT '✅ DATOS INSERTADOS CORRECTAMENTE' AS MENSAJE;
-
--- Usuarios y Roles
-SELECT u.id_usuario, u.email, CONCAT(u.nombres, ' ', u.apellidos) AS nombre_completo, r.nombre_rol 
-FROM UsuarioSistema u JOIN Rol r ON u.id_rol = r.id_rol;
-
--- Visitas y Estado
-SELECT id_visita, fecha_visita, estado_visita, lugar_visita, tipo_clase FROM VisitaInopinada;
-
--- ✅ Consulta Completa: Requerimientos con Evidencias y Estado
-SELECT 
-    rv.id_requerimiento,
-    rv.descripcion AS observacion_evaluador,
-    rv.estado AS estado_atencion,
-    rv.respuesta AS descargo_docente,
-    e.nombre_archivo,
-    e.ruta_archivo,
-    vi.fecha_visita,
-    CONCAT(d.nombres, ' ', d.apellidos) AS docente_responsable
-FROM RequerimientoVisita rv
-JOIN VisitaInopinada vi ON rv.id_visita = vi.id_visita
-JOIN Docente d ON vi.id_docente = d.id_docente
-LEFT JOIN EvidenciaRequerimiento e ON rv.id_requerimiento = e.id_requerimiento
-ORDER BY vi.fecha_visita DESC, rv.id_requerimiento;
-
-
