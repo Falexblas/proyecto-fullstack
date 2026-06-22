@@ -6,6 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   Table,
   TableBody,
   TableCell,
@@ -206,41 +213,71 @@ function AsignaturasContent() {
               </div>
               <div className="space-y-2">
                 <label htmlFor="campoFormativo" className="block text-sm font-medium">Campo Formativo</label>
-                <Input
-                  id="campoFormativo"
-                  placeholder="Campo formativo"
-                  value={formData.campoFormativo}
-                  onChange={(e) => setFormData({ ...formData, campoFormativo: e.target.value })}
-                />
+                <Select value={formData.campoFormativo} onValueChange={(value) => setFormData({ ...formData, campoFormativo: value })}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Campo formativo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ESTUDIOS GENERALES">ESTUDIOS GENERALES</SelectItem>
+                    <SelectItem value="ESTUDIOS ESPECÍFICOS">ESTUDIOS ESPECÍFICOS</SelectItem>
+                    <SelectItem value="ESTUDIOS DE ESPECIALIDAD">ESTUDIOS DE ESPECIALIDAD</SelectItem>
+                    <SelectItem value="PRÁCTICAS PRE-PROFESIONALES">PRÁCTICAS PRE-PROFESIONALES</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label htmlFor="cicloAcademico" className="block text-sm font-medium">Ciclo</label>
-                  <Input
-                    id="cicloAcademico"
-                    placeholder="Ciclo"
-                    value={formData.cicloAcademico}
-                    onChange={(e) => setFormData({ ...formData, cicloAcademico: e.target.value })}
-                  />
+                  <Select value={formData.cicloAcademico} onValueChange={(value) => setFormData({ ...formData, cicloAcademico: value })}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Ciclo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[
+                        "I",
+                        "II",
+                        "III",
+                        "IV",
+                        "V",
+                        "VI",
+                        "VII",
+                        "VIII",
+                        "IX",
+                        "X",
+                      ].map((value) => (
+                        <SelectItem key={value} value={value}>
+                          {value}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="turno" className="block text-sm font-medium">Turno</label>
-                  <Input
-                    id="turno"
-                    placeholder="Turno"
-                    value={formData.turno}
-                    onChange={(e) => setFormData({ ...formData, turno: e.target.value })}
-                  />
+                  <Select value={formData.turno} onValueChange={(value) => setFormData({ ...formData, turno: value })}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Turno" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="MAÑANA">MAÑANA</SelectItem>
+                      <SelectItem value="TARDE">TARDE</SelectItem>
+                      <SelectItem value="NOCHE">NOCHE</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <div className="space-y-2">
                 <label htmlFor="tipoHorario" className="block text-sm font-medium">Tipo de Horario</label>
-                <Input
-                  id="tipoHorario"
-                  placeholder="Tipo de horario"
-                  value={formData.tipoHorario}
-                  onChange={(e) => setFormData({ ...formData, tipoHorario: e.target.value })}
-                />
+                <Select value={formData.tipoHorario} onValueChange={(value) => setFormData({ ...formData, tipoHorario: value })}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Tipo de horario" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="TEORÍA">TEORÍA</SelectItem>
+                    <SelectItem value="PRÁCTICA">PRÁCTICA</SelectItem>
+                    <SelectItem value="MIXTA (TEORÍA + PRÁCTICA)">MIXTA (TEORÍA + PRÁCTICA)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <DialogFooter>
                 <Button variant="outline" type="button" onClick={() => { setNewDialogOpen(false); resetForm() }}>
@@ -356,37 +393,71 @@ function AsignaturasContent() {
             </div>
             <div className="space-y-2">
               <label htmlFor="edit-campoFormativo" className="block text-sm font-medium">Campo Formativo</label>
-              <Input
-                id="edit-campoFormativo"
-                value={formData.campoFormativo}
-                onChange={(e) => setFormData({ ...formData, campoFormativo: e.target.value })}
-              />
+              <Select value={formData.campoFormativo} onValueChange={(value) => setFormData({ ...formData, campoFormativo: value })}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Campo formativo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ESTUDIOS GENERALES">ESTUDIOS GENERALES</SelectItem>
+                  <SelectItem value="ESTUDIOS ESPECÍFICOS">ESTUDIOS ESPECÍFICOS</SelectItem>
+                  <SelectItem value="ESTUDIOS DE ESPECIALIDAD">ESTUDIOS DE ESPECIALIDAD</SelectItem>
+                  <SelectItem value="PRÁCTICAS PRE-PROFESIONALES">PRÁCTICAS PRE-PROFESIONALES</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label htmlFor="edit-cicloAcademico" className="block text-sm font-medium">Ciclo</label>
-                <Input
-                  id="edit-cicloAcademico"
-                  value={formData.cicloAcademico}
-                  onChange={(e) => setFormData({ ...formData, cicloAcademico: e.target.value })}
-                />
+                <Select value={formData.cicloAcademico} onValueChange={(value) => setFormData({ ...formData, cicloAcademico: value })}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Ciclo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[
+                      "I",
+                      "II",
+                      "III",
+                      "IV",
+                      "V",
+                      "VI",
+                      "VII",
+                      "VIII",
+                      "IX",
+                      "X",
+                    ].map((value) => (
+                      <SelectItem key={value} value={value}>
+                        {value}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <label htmlFor="edit-turno" className="block text-sm font-medium">Turno</label>
-                <Input
-                  id="edit-turno"
-                  value={formData.turno}
-                  onChange={(e) => setFormData({ ...formData, turno: e.target.value })}
-                />
+                <Select value={formData.turno} onValueChange={(value) => setFormData({ ...formData, turno: value })}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Turno" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="MAÑANA">MAÑANA</SelectItem>
+                    <SelectItem value="TARDE">TARDE</SelectItem>
+                    <SelectItem value="NOCHE">NOCHE</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="space-y-2">
               <label htmlFor="edit-tipoHorario" className="block text-sm font-medium">Tipo de Horario</label>
-              <Input
-                id="edit-tipoHorario"
-                value={formData.tipoHorario}
-                onChange={(e) => setFormData({ ...formData, tipoHorario: e.target.value })}
-              />
+              <Select value={formData.tipoHorario} onValueChange={(value) => setFormData({ ...formData, tipoHorario: value })}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Tipo de horario" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TEORÍA">TEORÍA</SelectItem>
+                  <SelectItem value="PRÁCTICA">PRÁCTICA</SelectItem>
+                  <SelectItem value="MIXTA (TEORÍA + PRÁCTICA)">MIXTA (TEORÍA + PRÁCTICA)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => { setEditDialogOpen(false); resetForm() }}>

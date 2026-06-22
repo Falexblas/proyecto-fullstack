@@ -41,12 +41,12 @@ interface NavItem {
 const navigation: NavItem[] = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ["ADMIN", "AUDITOR", "DOCENTE"] },
   { name: "Visitas", href: "/visitas", icon: ClipboardCheck, roles: ["ADMIN", "AUDITOR", "DOCENTE"] },
-  { name: "Requerimientos", href: "/requerimientos", icon: AlertCircle, roles: ["ADMIN", "AUDITOR", "DOCENTE"] },
+  { name: "Requerimientos", href: "/requerimientos", icon: AlertCircle, roles: ["DOCENTE"] },
   { name: "Docentes", href: "/docentes", icon: Users, roles: ["AUDITOR"] },
-  { name: "Responsables", href: "/responsables", icon: UserCheck, roles: ["ADMIN"] },
+  // { name: "Responsables", href: "/responsables", icon: UserCheck, roles: ["ADMIN"] },
   { name: "Asignaturas", href: "/asignaturas", icon: BookOpen, roles: ["ADMIN"] },
   { name: "Sedes", href: "/sedes", icon: Building2, roles: ["ADMIN"] },
-  { name: "Reportes", href: "/reportes", icon: FileBarChart, roles: ["ADMIN"] },
+  // { name: "Reportes", href: "/reportes", icon: FileBarChart, roles: ["ADMIN"] },
   { name: "Usuarios", href: "/usuarios", icon: Shield, roles: ["ADMIN"] },
   { name: "Configuracion", href: "/configuracion", icon: Settings, roles: ["ADMIN"] },
 ]
