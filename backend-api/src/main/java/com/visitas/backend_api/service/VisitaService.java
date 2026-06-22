@@ -3,6 +3,7 @@ package com.visitas.backend_api.service;
 import com.visitas.backend_api.dto.RequerimientoCreateDTO;
 import com.visitas.backend_api.dto.VisitaCreateDTO;
 import com.visitas.backend_api.dto.VisitaFilterDTO;
+import com.visitas.backend_api.dto.VisitaProgramarDTO;
 import com.visitas.backend_api.dto.VisitaResponseDTO;
 import com.visitas.backend_api.entity.AsignaturaEntity;
 import com.visitas.backend_api.entity.RequerimientoVisitaEntity;
@@ -20,6 +21,7 @@ import com.visitas.backend_api.dto.DashboardAuditorStatsDTO;
 import com.visitas.backend_api.enums.EstadoRequerimiento;
 import com.visitas.backend_api.enums.EstadoVisita;
 import com.visitas.backend_api.enums.Rol;
+import com.visitas.backend_api.enums.TipoClase;
 import com.visitas.backend_api.exception.InvalidStateException;
 import com.visitas.backend_api.exception.ResourceNotFoundException;
 import com.visitas.backend_api.exception.UnauthorizedAccessException;
@@ -37,14 +39,17 @@ import com.visitas.backend_api.repository.SedeEntityRepository;
 import com.visitas.backend_api.repository.UsuarioSistemaEntityRepository;
 import com.visitas.backend_api.repository.VisitaInopinadaEntityRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class VisitaService {
@@ -66,6 +71,9 @@ public class VisitaService {
 
     @Transactional
     public VisitaResponseDTO crearVisita(VisitaCreateDTO dto) {
+        log.info("=== INICIANDO CREACION DE VISITA ===");
+        log.info("DTO recibido con {} requerimientos", dto.getRequerimientos() != null ? dto.getRequerimientos().size() : 0);
+        
         Integer currentUserId = authService.getCurrentUserId();
 
         SedeEntity sede = sedeRepository.findById(dto.getIdSede())
@@ -106,6 +114,7 @@ public class VisitaService {
         }
 
         visita = visitaRepository.save(visita);
+        log.info("Visita guardada con ID: {}", visita.getId());
 
         EvaluacionControlDocenteEntity evaluacionControlDocente = new EvaluacionControlDocenteEntity();
         evaluacionControlDocente.setVisita(visita);
@@ -152,6 +161,8 @@ public class VisitaService {
 
         // Crear requerimientos si vienen en el DTO
         if (dto.getRequerimientos() != null && !dto.getRequerimientos().isEmpty()) {
+            log.info("Guardando {} requerimientos para la visita ID: {}", dto.getRequerimientos().size(), visita.getId());
+            
             for (RequerimientoCreateDTO reqDTO : dto.getRequerimientos()) {
                 if (reqDTO.getDescripcion() != null && !reqDTO.getDescripcion().trim().isEmpty()) {
                     RequerimientoVisitaEntity requerimiento = new RequerimientoVisitaEntity();
@@ -159,10 +170,21 @@ public class VisitaService {
                     requerimiento.setDescripcion(reqDTO.getDescripcion().trim());
                     requerimiento.setEstado(EstadoRequerimiento.PENDIENTE);
                     requerimiento.setFechaSolicitud(LocalDate.now());
-                    requerimientoRepository.save(requerimiento);
+                    
+                    RequerimientoVisitaEntity guardado = requerimientoRepository.save(requerimiento);
+                    log.info("Requerimiento guardado: {} -> {}", guardado.getId(), guardado.getDescripcion());
                 }
             }
+        } else {
+            log.warn("No hay requerimientos en el DTO para la visita ID: {}", visita.getId());
         }
+
+        // Recargar la visita desde la BD para que traiga los requerimientos (con EAGER loading)
+        Integer visitaId = visita.getId();
+        visita = visitaRepository.findById(visitaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Visita", visitaId));
+        
+        log.info("Visita recargada con {} requerimientos", visita.getRequerimientos() != null ? visita.getRequerimientos().size() : 0);
 
         return visitaMapper.toResponseDTO(visita);
     }
@@ -463,5 +485,74 @@ public class VisitaService {
                 proximasVisitas,
                 visitasRecientes
         );
+    }
+
+    @Transactional
+    public VisitaResponseDTO programarVisitaParaAuditor(VisitaProgramarDTO dto) {
+        // Validaciones
+        SedeEntity sede = sedeRepository.findById(dto.getIdSede())
+                .orElseThrow(() -> new ResourceNotFoundException("Sede", dto.getIdSede()));
+        DocenteEntity docente = docenteRepository.findById(dto.getIdDocente())
+                .orElseThrow(() -> new ResourceNotFoundException("Docente", dto.getIdDocente()));
+        AsignaturaEntity asignatura = asignaturaRepository.findById(dto.getIdAsignatura())
+                .orElseThrow(() -> new ResourceNotFoundException("Asignatura", dto.getIdAsignatura()));
+        UsuarioSistemaEntity auditor = usuarioRepository.findById(dto.getIdAuditor())
+                .orElseThrow(() -> new ResourceNotFoundException("Auditor", dto.getIdAuditor()));
+        
+        // Verificar que el auditor tiene rol AUDITOR
+        if (auditor.getRol().getNombreRol() != Rol.AUDITOR) {
+            throw new InvalidStateException("El usuario seleccionado no es un auditor");
+        }
+        
+        // Obtener responsable (por defecto el primero)
+        ResponsableVisitaEntity responsable = responsableRepository.findAll().stream()
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("No hay responsables disponibles", 0));
+        
+        // Crear la visita programada
+        VisitaInopinadaEntity visita = new VisitaInopinadaEntity();
+        visita.setFechaVisita(dto.getFechaVisita());
+        visita.setHoraInicio(LocalTime.of(9, 0)); // Hora por defecto
+        visita.setHoraTermino(LocalTime.of(10, 0)); // Hora por defecto
+        visita.setSede(sede);
+        visita.setDocente(docente);
+        visita.setAsignatura(asignatura);
+        visita.setResponsable(responsable);
+        visita.setUsuarioAuditor(auditor);
+        visita.setEstadoVisita(EstadoVisita.BORRADOR);
+        visita.setTipoClase(TipoClase.TEORICA);
+        
+        visita = visitaRepository.save(visita);
+        
+        // Crear evaluaciones vacías asociadas
+        EvaluacionControlDocenteEntity evaluacionControlDocente = new EvaluacionControlDocenteEntity();
+        evaluacionControlDocente.setVisita(visita);
+        evaluacionControlDocenteRepository.save(evaluacionControlDocente);
+        
+        EvaluacionMaterialVirtualEntity evaluacionMaterialVirtual = new EvaluacionMaterialVirtualEntity();
+        evaluacionMaterialVirtual.setVisita(visita);
+        evaluacionMaterialVirtualRepository.save(evaluacionMaterialVirtual);
+        
+        EvaluacionAsistenciaEstudiantesEntity evaluacionAsistenciaEstudiantes = new EvaluacionAsistenciaEstudiantesEntity();
+        evaluacionAsistenciaEstudiantes.setVisita(visita);
+        evaluacionAsistenciaEstudiantesRepository.save(evaluacionAsistenciaEstudiantes);
+        
+        EvaluacionAvanceSilabicoEntity evaluacionAvanceSilabico = new EvaluacionAvanceSilabicoEntity();
+        evaluacionAvanceSilabico.setVisita(visita);
+        evaluacionAvanceSilabicoRepository.save(evaluacionAvanceSilabico);
+        
+        EvaluacionGuiaPracticaEntity evaluacionGuiaPractica = new EvaluacionGuiaPracticaEntity();
+        evaluacionGuiaPractica.setVisita(visita);
+        evaluacionGuiaPracticaRepository.save(evaluacionGuiaPractica);
+        
+        visita.setEvaluacionControlDocente(evaluacionControlDocente);
+        visita.setEvaluacionMaterialVirtual(evaluacionMaterialVirtual);
+        visita.setEvaluacionAsistenciaEstudiantes(evaluacionAsistenciaEstudiantes);
+        visita.setEvaluacionAvanceSilabico(evaluacionAvanceSilabico);
+        visita.setEvaluacionGuiaPractica(evaluacionGuiaPractica);
+        
+        visita = visitaRepository.save(visita);
+        
+        return visitaMapper.toResponseDTO(visita);
     }
 }

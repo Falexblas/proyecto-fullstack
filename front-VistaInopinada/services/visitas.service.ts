@@ -107,6 +107,14 @@ export interface VisitaFilterData {
   fechaHasta?: string | null
 }
 
+export interface VisitaProgramarData {
+  idDocente: number
+  idAsignatura: number
+  idSede: number
+  fechaVisita: string
+  idAuditor: number
+}
+
 export const visitasService = {
   getAll: async (): Promise<Visita[]> => {
     const response = await api.get<Visita[]>("/visitas")
@@ -176,6 +184,11 @@ export const visitasService = {
     const response = await api.get(`/visitas/${id}/pdf`, {
       responseType: "blob",
     })
+    return response.data
+  },
+
+  programar: async (data: VisitaProgramarData): Promise<Visita> => {
+    const response = await api.post<Visita>("/visitas/programar", data)
     return response.data
   },
 }

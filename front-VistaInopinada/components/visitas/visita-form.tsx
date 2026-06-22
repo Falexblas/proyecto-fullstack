@@ -342,6 +342,38 @@ export function VisitaForm({ onDirtyChange }: VisitaFormProps) {
     return `${hours}:${minutes}`
   }
 
+  const validateHours = () => {
+    const newErrors: Record<string, string> = {}
+    
+    if (formData.horaInicio) {
+      const { hours: initHours } = parseTime(formData.horaInicio)
+      if (initHours < 8 || initHours >= 23) {
+        newErrors.horaInicio = "La hora de inicio debe estar entre 08:00 y 23:00"
+      }
+    }
+    
+    if (formData.horaTermino) {
+      const { hours: termHours } = parseTime(formData.horaTermino)
+      if (termHours < 8 || termHours >= 23) {
+        newErrors.horaTermino = "La hora de término debe estar entre 08:00 y 23:00"
+      }
+    }
+    
+    if (formData.horaInicio && formData.horaTermino) {
+      const { hours: initHours, minutes: initMinutes } = parseTime(formData.horaInicio)
+      const { hours: termHours, minutes: termMinutes } = parseTime(formData.horaTermino)
+      
+      const initTimeInMinutes = initHours * 60 + initMinutes
+      const termTimeInMinutes = termHours * 60 + termMinutes
+      
+      if (termTimeInMinutes <= initTimeInMinutes) {
+        newErrors.horaTermino = "La hora de término debe ser posterior a la hora de inicio"
+      }
+    }
+    
+    return newErrors
+  }
+
   const validateStep1 = () => {
     const newErrors: Record<string, string> = {}
     const idSede = parseInt(formData.sede)
@@ -370,6 +402,10 @@ export function VisitaForm({ onDirtyChange }: VisitaFormProps) {
       }
     }
 
+    // Validar horas
+    const hoursErrors = validateHours()
+    Object.assign(newErrors, hoursErrors)
+
     setErrors(newErrors)
     return {
       valid: Object.keys(newErrors).length === 0,
@@ -384,7 +420,7 @@ export function VisitaForm({ onDirtyChange }: VisitaFormProps) {
     if (!formData.docentePresente) newErrors.docentePresente = "Selecciona si el docente estuvo presente."
     if (!formData.horarioProgramado) newErrors.horarioProgramado = "Selecciona si el horario fue programado."
     if (!formData.interaccion) newErrors.interaccion = "Selecciona si la interacción fue adecuada."
-    if (!formData.actividad || !formData.actividad.trim()) newErrors.actividad = "Describe la actividad."
+    // Actividad ahora es OPCIONAL
     if (!formData.materialCargado) newErrors.materialCargado = "Selecciona el estado del material virtual."
     if (!formData.asistenciaAmbienteCumple) newErrors.asistenciaAmbienteCumple = "Selecciona el control en ambiente."
     if (!formData.asistenciaIntranetCumple) newErrors.asistenciaIntranetCumple = "Selecciona el control en intranet."
@@ -802,22 +838,26 @@ export function VisitaForm({ onDirtyChange }: VisitaFormProps) {
                 <Input
                   type="time"
                   min="08:00"
-                  max="23:00"
+                  max="22:59"
                   value={formData.horaInicio}
                   onChange={(e) => updateField("horaInicio", e.target.value)}
-                  className="w-full"
+                  className={cn(errors.horaInicio && "border-destructive focus:border-destructive focus:ring-destructive")}
                 />
+                {fieldError("horaInicio") && <p className="text-xs text-destructive mt-1">{fieldError("horaInicio")}</p>}
+                <p className="text-xs text-muted-foreground">Rango: 08:00 - 23:00</p>
               </div>
               <div className="space-y-2">
-                <Label>Hora de Termino</Label>
+                <Label>Hora de Término</Label>
                 <Input
                   type="time"
                   min="08:00"
-                  max="23:00"
+                  max="22:59"
                   value={formData.horaTermino}
                   onChange={(e) => updateField("horaTermino", e.target.value)}
-                  className="w-full"
+                  className={cn(errors.horaTermino && "border-destructive focus:border-destructive focus:ring-destructive")}
                 />
+                {fieldError("horaTermino") && <p className="text-xs text-destructive mt-1">{fieldError("horaTermino")}</p>}
+                <p className="text-xs text-muted-foreground">Debe ser posterior a la hora de inicio</p>
               </div>
             </div>
 

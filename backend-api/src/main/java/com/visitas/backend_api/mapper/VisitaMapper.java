@@ -5,6 +5,7 @@ import com.visitas.backend_api.dto.EvaluacionAvanceSilabicoDTO;
 import com.visitas.backend_api.dto.EvaluacionControlDocenteDTO;
 import com.visitas.backend_api.dto.EvaluacionGuiaPracticaDTO;
 import com.visitas.backend_api.dto.EvaluacionMaterialVirtualDTO;
+import com.visitas.backend_api.dto.RequerimientoVisitaDTO;
 import com.visitas.backend_api.dto.VisitaCreateDTO;
 import com.visitas.backend_api.dto.VisitaResponseDTO;
 import com.visitas.backend_api.entity.EvaluacionAsistenciaEstudiantesEntity;
@@ -12,11 +13,15 @@ import com.visitas.backend_api.entity.EvaluacionAvanceSilabicoEntity;
 import com.visitas.backend_api.entity.EvaluacionControlDocenteEntity;
 import com.visitas.backend_api.entity.EvaluacionGuiaPracticaEntity;
 import com.visitas.backend_api.entity.EvaluacionMaterialVirtualEntity;
+import com.visitas.backend_api.entity.RequerimientoVisitaEntity;
 import com.visitas.backend_api.entity.VisitaInopinadaEntity;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.Named;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Mapper(componentModel = "spring")
 public interface VisitaMapper {
@@ -54,6 +59,7 @@ public interface VisitaMapper {
     @Mapping(target = "evaluacionAsistenciaEstudiantes", source = "evaluacionAsistenciaEstudiantes", qualifiedByName = "toDTO")
     @Mapping(target = "evaluacionAvanceSilabico", source = "evaluacionAvanceSilabico", qualifiedByName = "toDTO")
     @Mapping(target = "evaluacionGuiaPractica", source = "evaluacionGuiaPractica", qualifiedByName = "toDTO")
+    @Mapping(target = "requerimientos", source = "requerimientos", qualifiedByName = "toRequerimientoListDTO")
     VisitaResponseDTO toResponseDTO(VisitaInopinadaEntity entity);
 
     @Named("toDTO")
@@ -105,4 +111,16 @@ public interface VisitaMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "visita", ignore = true)
     void updateEntityFromDTO(EvaluacionGuiaPracticaDTO dto, @MappingTarget EvaluacionGuiaPracticaEntity entity);
+
+    @Named("toRequerimientoListDTO")
+    default List<RequerimientoVisitaDTO> toRequerimientoListDTO(List<RequerimientoVisitaEntity> entities) {
+        if (entities == null) {
+            return null;
+        }
+        return entities.stream()
+                .map(this::toRequerimientoDTO)
+                .collect(Collectors.toList());
+    }
+
+    RequerimientoVisitaDTO toRequerimientoDTO(RequerimientoVisitaEntity entity);
 }

@@ -108,7 +108,7 @@ public class VisitaInopinadaEntity {
     @OneToOne(mappedBy = "visita", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private EvaluacionGuiaPracticaEntity evaluacionGuiaPractica;
 
-    @OneToMany(mappedBy = "visita", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "visita", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<RequerimientoVisitaEntity> requerimientos = new ArrayList<>();
 
     @PreUpdate

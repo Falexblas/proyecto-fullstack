@@ -216,8 +216,9 @@ public class PdfService {
             // OBSERVACIONES S1
             String obs1 = visita.getEvaluacionControlDocente() != null
                     ? safeStr(visita.getEvaluacionControlDocente().getObservaciones()) : "";
+            String obs1Display = obs1.isEmpty() ? "No hay observaciones" : obs1;
             s1.addCell(new Cell(1, 8)
-                    .add(new Paragraph("OBSERVACIONES: " + obs1).setFont(font).setFontSize(7))
+                    .add(new Paragraph("OBSERVACIONES: " + obs1Display).setFont(font).setFontSize(7))
                     .setPadding(2).setMinHeight(13));
             document.add(s1);
 
@@ -250,8 +251,9 @@ public class PdfService {
 
             String obs2 = visita.getEvaluacionMaterialVirtual() != null
                     ? safeStr(visita.getEvaluacionMaterialVirtual().getObservaciones()) : "";
+            String obs2Display = obs2.isEmpty() ? "No hay observaciones" : obs2;
             s2.addCell(new Cell(1, 3)
-                    .add(new Paragraph("OBSERVACIONES: " + obs2).setFont(font).setFontSize(7))
+                    .add(new Paragraph("OBSERVACIONES: " + obs2Display).setFont(font).setFontSize(7))
                     .setPadding(2).setMinHeight(13));
             document.add(s2);
 
@@ -312,17 +314,18 @@ public class PdfService {
                     .setBackgroundColor(GRAY_BG).setPadding(2).setMinHeight(ROW_H));
             s3.addCell(createCheckCell("CUMPLE".equalsIgnoreCase(ambCumple) || "cumple".equalsIgnoreCase(ambCumple), font));
             s3.addCell(createCheckCell("NO_CUMPLE".equalsIgnoreCase(ambCumple) || "no_cumple".equalsIgnoreCase(ambCumple), font));
-            s3.addCell(new Cell().add(new Paragraph(ambObs).setFont(font).setFontSize(7))
+            s3.addCell(new Cell().add(new Paragraph(ambObs.isEmpty() ? "No hay observaciones" : ambObs).setFont(font).setFontSize(7))
                     .setPadding(2).setMinHeight(ROW_H));
             s3.addCell(createCheckCell("CUMPLE".equalsIgnoreCase(intCumple) || "cumple".equalsIgnoreCase(intCumple), font));
             s3.addCell(createCheckCell("NO_CUMPLE".equalsIgnoreCase(intCumple) || "no_cumple".equalsIgnoreCase(intCumple), font));
-            s3.addCell(new Cell().add(new Paragraph(intObs).setFont(font).setFontSize(7))
+            s3.addCell(new Cell().add(new Paragraph(intObs.isEmpty() ? "No hay observaciones" : intObs).setFont(font).setFontSize(7))
                     .setPadding(2).setMinHeight(ROW_H));
 
             String obs3 = visita.getEvaluacionAsistenciaEstudiantes() != null
                     ? safeStr(visita.getEvaluacionAsistenciaEstudiantes().getObservacionesGenerales()) : "";
-            s3.addCell(new Cell(1, 7)
-                    .add(new Paragraph("OBSERVACIONES: " + obs3).setFont(font).setFontSize(7))
+            String obs3Display = obs3.isEmpty() ? "No hay observaciones" : obs3;
+            s3.addCell(new Cell(1, 6)
+                    .add(new Paragraph("OBSERVACIONES: " + obs3Display).setFont(font).setFontSize(7))
                     .setPadding(2).setMinHeight(13));
             document.add(s3);
 
@@ -367,8 +370,9 @@ public class PdfService {
             }
             String obs4 = visita.getEvaluacionAvanceSilabico() != null
                     ? safeStr(visita.getEvaluacionAvanceSilabico().getObservaciones()) : "";
-            s4.addCell(new Cell(1, 3)
-                    .add(new Paragraph("OBSERVACIONES: " + obs4).setFont(font).setFontSize(7))
+            String obs4Display = obs4.isEmpty() ? "No hay observaciones" : obs4;
+            s4.addCell(new Cell(1, 8)
+                    .add(new Paragraph("OBSERVACIONES: " + obs4Display).setFont(font).setFontSize(7))
                     .setPadding(2).setMinHeight(13));
             document.add(s4);
 
@@ -423,8 +427,9 @@ public class PdfService {
             }
             String obs5 = visita.getEvaluacionGuiaPractica() != null
                     ? safeStr(visita.getEvaluacionGuiaPractica().getObservaciones()) : "";
-            s5.addCell(new Cell(1, 4)
-                    .add(new Paragraph("OBSERVACIONES: " + obs5).setFont(font).setFontSize(7))
+            String obs5Display = obs5.isEmpty() ? "No hay observaciones" : obs5;
+            s5.addCell(new Cell(1, 8)
+                    .add(new Paragraph("OBSERVACIONES: " + obs5Display).setFont(font).setFontSize(7))
                     .setPadding(2).setMinHeight(13));
             document.add(s5);
 
@@ -440,11 +445,29 @@ public class PdfService {
             footer.addCell(new Cell()
                     .add(new Paragraph(resp).setFont(font).setFontSize(7))
                     .setPadding(2).setMinHeight(ROW_H));
-            footer.addCell(new Cell(1, 2)
+            document.add(footer);
+
+            // Tabla de REQUERIMIENTOS
+            Table requerimientos = createBaseTable(new float[]{100}, font, 7);
+            requerimientos.addCell(new Cell()
                     .add(new Paragraph("REQUERIMIENTOS SOLICITADOS EN LA VISITA INOPINADA:")
                             .setFont(boldFont).setFontSize(7))
-                    .setBackgroundColor(GRAY_BG).setPadding(2).setMinHeight(ROW_H_TALL));
-            document.add(footer);
+                    .setBackgroundColor(GRAY_BG).setPadding(2).setMinHeight(ROW_H));
+
+            // Iterar sobre los requerimientos y agregarlos
+            if (visita.getRequerimientos() != null && !visita.getRequerimientos().isEmpty()) {
+                for (int i = 0; i < visita.getRequerimientos().size(); i++) {
+                    String reqDesc = safeStr(visita.getRequerimientos().get(i).getDescripcion());
+                    requerimientos.addCell(new Cell()
+                            .add(new Paragraph((i + 1) + ". " + reqDesc).setFont(font).setFontSize(7))
+                            .setPadding(2).setMinHeight(13));
+                }
+            } else {
+                requerimientos.addCell(new Cell()
+                        .add(new Paragraph("Sin requerimientos registrados").setFont(font).setFontSize(7))
+                        .setPadding(2).setMinHeight(13));
+            }
+            document.add(requerimientos);
 
             // ═══════════════════════════════════════════════
             // 9. FIRMAS

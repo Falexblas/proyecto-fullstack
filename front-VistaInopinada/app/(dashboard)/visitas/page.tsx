@@ -19,6 +19,7 @@ export default function VisitasPage() {
   })
 
   const isDocente = user?.rol === "DOCENTE"
+  const isAdmin = user?.rol === "ADMIN"
   const canCreateVisita = user?.rol === "AUDITOR"
 
   return (
@@ -36,6 +37,15 @@ export default function VisitasPage() {
             }
           </p>
         </div>
+        {/* Botón Programar Visita - OCULTO POR AHORA */}
+        {/* {isAdmin && (
+          <Button asChild>
+            <Link href="/visitas/programar">
+              <Plus className="h-4 w-4 mr-2" />
+              Programar Visita
+            </Link>
+          </Button>
+        )} */}
         {canCreateVisita && (
           <Button asChild>
             <Link href="/visitas/nueva">

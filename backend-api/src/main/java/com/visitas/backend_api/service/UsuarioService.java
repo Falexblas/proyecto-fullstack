@@ -43,6 +43,15 @@ public class UsuarioService {
                 .collect(Collectors.toList());
     }
 
+    public List<UsuarioDTO> listarAuditors() {
+        List<UsuarioSistemaEntity> usuarios = usuarioRepository.findAll();
+        return usuarios.stream()
+                .filter(u -> u.getEstado() != null && u.getEstado() && 
+                           u.getRol() != null && u.getRol().getNombreRol().name().equals("AUDITOR"))
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
     public UsuarioDTO obtenerPorId(Integer id) {
         UsuarioSistemaEntity usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario", id));

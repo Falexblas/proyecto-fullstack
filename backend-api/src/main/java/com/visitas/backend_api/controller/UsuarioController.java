@@ -29,6 +29,12 @@ public class UsuarioController {
         return ResponseEntity.ok(usuarioService.listarActivos());
     }
 
+    @GetMapping("/auditors")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<UsuarioDTO>> listarAuditors() {
+        return ResponseEntity.ok(usuarioService.listarAuditors());
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UsuarioDTO> obtenerPorId(@PathVariable Integer id) {
