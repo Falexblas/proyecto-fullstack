@@ -23,8 +23,8 @@ public interface VisitaMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "estadoVisita", ignore = true)
-    @Mapping(target = "firmaDocenteHash", ignore = true)
-    @Mapping(target = "firmaResponsableHash", ignore = true)
+    @Mapping(target = "firmaDocenteHash", source = "firmaDocente")
+    @Mapping(target = "firmaResponsableHash", source = "firmaResponsable")
     @Mapping(target = "fechaFirmaDocente", ignore = true)
     @Mapping(target = "fechaFirmaResponsable", ignore = true)
     @Mapping(target = "fechaRegistro", ignore = true)

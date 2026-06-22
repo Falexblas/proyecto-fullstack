@@ -562,10 +562,7 @@ export function VisitaForm({ onDirtyChange }: VisitaFormProps) {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload)
   }, [isFormDirty])
 
-  // Esperar a que el componente se monte en el cliente y capturar la hora de inicio
   useEffect(() => {
-    const now = getCurrentTimeString()
-    setFormData(prev => ({ ...prev, horaInicio: now }))
     setMounted(true)
   }, [])
 
@@ -618,8 +615,8 @@ export function VisitaForm({ onDirtyChange }: VisitaFormProps) {
         .filter(r => r.descripcion.trim().length > 0)
         .map(r => ({ descripcion: r.descripcion.trim() }))
 
-      const horaInicioPayload = formData.horaInicio || getCurrentTimeString()
-      const horaTerminoPayload = getCurrentTimeString()
+      const horaInicioPayload = formData.horaInicio
+      const horaTerminoPayload = formData.horaTermino
 
       console.log("DEBUG - formData values:", {
         docentePresente: formData.docentePresente,
@@ -684,6 +681,8 @@ export function VisitaForm({ onDirtyChange }: VisitaFormProps) {
         evaluacionAvanceSilabico,
         evaluacionGuiaPractica,
         requerimientos: requerimientosValidos.length > 0 ? requerimientosValidos : undefined,
+        firmaDocente: formData.firmaDocente || null,
+        firmaResponsable: formData.firmaResponsable || null,
       }
       await visitasService.create(payload)
       toast.success("Visita registrada exitosamente")
@@ -753,19 +752,14 @@ export function VisitaForm({ onDirtyChange }: VisitaFormProps) {
       {step === 1 && (
         <Card>
           <CardHeader className="bg-primary/5 border-b">
-            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5" />
-                  Datos Generales de la Visita
-                </CardTitle>
-                <CardDescription>
-                  Informacion basica de la visita inopinada - Clases Presenciales
-                </CardDescription>
-              </div>
-              <div className="rounded-full border border-border bg-muted px-3 py-1 text-sm font-medium">
-                Hora de Inicio: {formData.horaInicio || "--:--"}
-              </div>
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5" />
+                Datos Generales de la Visita
+              </CardTitle>
+              <CardDescription>
+                Informacion basica de la visita inopinada - Clases Presenciales
+              </CardDescription>
             </div>
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
@@ -798,6 +792,32 @@ export function VisitaForm({ onDirtyChange }: VisitaFormProps) {
                   </SelectContent>
                 </Select>
                 {fieldError("semana") && <p className="text-xs text-destructive mt-1">{fieldError("semana")}</p>}
+              </div>
+            </div>
+
+            {/* Hora de Inicio y Hora de Termino */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Hora de Inicio</Label>
+                <Input
+                  type="time"
+                  min="08:00"
+                  max="23:00"
+                  value={formData.horaInicio}
+                  onChange={(e) => updateField("horaInicio", e.target.value)}
+                  className="w-full"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Hora de Termino</Label>
+                <Input
+                  type="time"
+                  min="08:00"
+                  max="23:00"
+                  value={formData.horaTermino}
+                  onChange={(e) => updateField("horaTermino", e.target.value)}
+                  className="w-full"
+                />
               </div>
             </div>
 
@@ -1479,7 +1499,7 @@ export function VisitaForm({ onDirtyChange }: VisitaFormProps) {
                 Resumen de la Visita
               </CardTitle>
               <CardDescription>
-                Revise los datos antes de crear la visita. Las firmas se registrarán posteriormente.
+                Revise los datos antes de crear la visita. Firme para completar el proceso.
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-4">
@@ -1530,14 +1550,32 @@ export function VisitaForm({ onDirtyChange }: VisitaFormProps) {
                   </span>
                 </div>
               </div>
+            </CardContent>
+          </Card>
 
-              <div className="mt-6 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <p className="text-sm text-blue-800">
-                  <strong>Flujo de Firmas:</strong><br />
-                  1. La visita se creará como <strong>Borrador</strong><br />
-                  2. El docente revisará y firmará<br />
-                  3. Usted firmará para completar el proceso
-                </p>
+          {/* Firmas */}
+          <Card>
+            <CardHeader className="bg-primary/5 border-b">
+              <CardTitle className="flex items-center gap-2">
+                <PenTool className="h-5 w-5" />
+                Firmas
+              </CardTitle>
+              <CardDescription>
+                Firme para completar el proceso de creación de la visita.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <div className="grid gap-6 md:grid-cols-2">
+                <SignaturePad
+                  label="Firma del Docente"
+                  value={formData.firmaDocente}
+                  onChange={(v) => updateField("firmaDocente", v)}
+                />
+                <SignaturePad
+                  label="Firma del Responsable (Auditor)"
+                  value={formData.firmaResponsable}
+                  onChange={(v) => updateField("firmaResponsable", v)}
+                />
               </div>
             </CardContent>
           </Card>

@@ -99,7 +99,8 @@ export function VisitasTable({ showOnlyMine = false, filters }: VisitasTableProp
       link.remove()
       URL.revokeObjectURL(url)
       toast.success("PDF generado exitosamente")
-    } catch {
+    } catch (error) {
+      console.error("Error al generar PDF:", error)
       toast.error("Error al generar el PDF")
     }
   }

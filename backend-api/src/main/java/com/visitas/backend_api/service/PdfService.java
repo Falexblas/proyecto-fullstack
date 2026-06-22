@@ -1,6 +1,6 @@
 package com.visitas.backend_api.service;
 
-import com.itextpdf.io.font.PdfEncodings;
+
 import com.itextpdf.io.font.constants.StandardFonts;
 import com.itextpdf.io.image.ImageDataFactory;
 import com.itextpdf.kernel.colors.DeviceRgb;
@@ -11,7 +11,6 @@ import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.layout.Document;
 import com.itextpdf.layout.borders.Border;
-import com.itextpdf.layout.borders.SolidBorder;
 import com.itextpdf.layout.element.*;
 import com.itextpdf.layout.properties.HorizontalAlignment;
 import com.itextpdf.layout.properties.TextAlignment;
@@ -38,7 +37,6 @@ public class PdfService {
 
     // Gris exacto del formato oficial VRA-FR-040
     private static final DeviceRgb GRAY_BG    = new DeviceRgb(217, 217, 217);
-    private static final DeviceRgb WHITE_BG   = new DeviceRgb(255, 255, 255);
     private static final String    CHECK_MARK = "X";
 
     // Altura estándar de fila
@@ -49,6 +47,11 @@ public class PdfService {
 
         VisitaInopinadaEntity visita = visitaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Visita", id));
+
+        System.out.println("DEBUG - Generando PDF para visita ID: " + id);
+        System.out.println("DEBUG - Estado visita: " + visita.getEstadoVisita());
+        System.out.println("DEBUG - Docente: " + (visita.getDocente() != null ? visita.getDocente().getNombres() + " " + visita.getDocente().getApellidos() : "NULL"));
+        System.out.println("DEBUG - Asignatura: " + (visita.getAsignatura() != null ? visita.getAsignatura().getNombre() : "NULL"));
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
@@ -307,12 +310,12 @@ public class PdfService {
             s3.addCell(new Cell()
                     .add(new Paragraph("ASISTENCIA").setFont(boldFont).setFontSize(7))
                     .setBackgroundColor(GRAY_BG).setPadding(2).setMinHeight(ROW_H));
-            s3.addCell(createCheckCell("CUMPLE".equalsIgnoreCase(ambCumple),    font));
-            s3.addCell(createCheckCell("NO CUMPLE".equalsIgnoreCase(ambCumple), font));
+            s3.addCell(createCheckCell("CUMPLE".equalsIgnoreCase(ambCumple) || "cumple".equalsIgnoreCase(ambCumple), font));
+            s3.addCell(createCheckCell("NO_CUMPLE".equalsIgnoreCase(ambCumple) || "no_cumple".equalsIgnoreCase(ambCumple), font));
             s3.addCell(new Cell().add(new Paragraph(ambObs).setFont(font).setFontSize(7))
                     .setPadding(2).setMinHeight(ROW_H));
-            s3.addCell(createCheckCell("CUMPLE".equalsIgnoreCase(intCumple),    font));
-            s3.addCell(createCheckCell("NO CUMPLE".equalsIgnoreCase(intCumple), font));
+            s3.addCell(createCheckCell("CUMPLE".equalsIgnoreCase(intCumple) || "cumple".equalsIgnoreCase(intCumple), font));
+            s3.addCell(createCheckCell("NO_CUMPLE".equalsIgnoreCase(intCumple) || "no_cumple".equalsIgnoreCase(intCumple), font));
             s3.addCell(new Cell().add(new Paragraph(intObs).setFont(font).setFontSize(7))
                     .setPadding(2).setMinHeight(ROW_H));
 

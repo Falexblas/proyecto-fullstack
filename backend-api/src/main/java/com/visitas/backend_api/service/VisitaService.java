@@ -41,7 +41,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import com.visitas.backend_api.enums.EstadoVisita;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -86,7 +85,25 @@ public class VisitaService {
         visita.setAsignatura(asignatura);
         visita.setResponsable(responsable);
         visita.setUsuarioAuditor(usuarioAuditor);
-        visita.setEstadoVisita(EstadoVisita.BORRADOR);
+        
+        // Handle signatures and set status accordingly
+        if (dto.getFirmaDocente() != null && !dto.getFirmaDocente().trim().isEmpty() &&
+            dto.getFirmaResponsable() != null && !dto.getFirmaResponsable().trim().isEmpty()) {
+            // Both signatures provided - set to COMPLETADA
+            visita.setFirmaDocenteHash(dto.getFirmaDocente());
+            visita.setFirmaResponsableHash(dto.getFirmaResponsable());
+            visita.setFechaFirmaDocente(LocalDateTime.now());
+            visita.setFechaFirmaResponsable(LocalDateTime.now());
+            visita.setEstadoVisita(EstadoVisita.COMPLETADA);
+        } else if (dto.getFirmaDocente() != null && !dto.getFirmaDocente().trim().isEmpty()) {
+            // Only docente signature provided - set to FIRMADA_DOCENTE
+            visita.setFirmaDocenteHash(dto.getFirmaDocente());
+            visita.setFechaFirmaDocente(LocalDateTime.now());
+            visita.setEstadoVisita(EstadoVisita.FIRMADA_DOCENTE);
+        } else {
+            // No signatures - set to BORRADOR
+            visita.setEstadoVisita(EstadoVisita.BORRADOR);
+        }
 
         visita = visitaRepository.save(visita);
 
