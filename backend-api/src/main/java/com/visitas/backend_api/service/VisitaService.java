@@ -94,6 +94,11 @@ public class VisitaService {
         visita.setResponsable(responsable);
         visita.setUsuarioAuditor(usuarioAuditor);
         
+        // Set evidence image if provided
+        if (dto.getEvidenciaImagen() != null && !dto.getEvidenciaImagen().trim().isEmpty()) {
+            visita.setEvidenciaImagenHash(dto.getEvidenciaImagen());
+        }
+
         // Handle signatures and set status accordingly
         if (dto.getFirmaDocente() != null && !dto.getFirmaDocente().trim().isEmpty() &&
             dto.getFirmaResponsable() != null && !dto.getFirmaResponsable().trim().isEmpty()) {
@@ -254,6 +259,9 @@ public class VisitaService {
         }
         if (dto.getSemanaNumero() != null) {
             visita.setSemanaNumero(dto.getSemanaNumero());
+        }
+        if (dto.getEvidenciaImagen() != null) {
+            visita.setEvidenciaImagenHash(dto.getEvidenciaImagen());
         }
 
         visita = visitaRepository.save(visita);

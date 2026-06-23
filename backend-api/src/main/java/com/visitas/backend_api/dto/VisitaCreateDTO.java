@@ -49,4 +49,5 @@ public class VisitaCreateDTO {
     private List<RequerimientoCreateDTO> requerimientos;
     private String firmaDocente;
     private String firmaResponsable;
+    private String evidenciaImagen;
 }

@@ -30,6 +30,7 @@ public interface VisitaMapper {
     @Mapping(target = "estadoVisita", ignore = true)
     @Mapping(target = "firmaDocenteHash", source = "firmaDocente")
     @Mapping(target = "firmaResponsableHash", source = "firmaResponsable")
+    @Mapping(target = "evidenciaImagenHash", source = "evidenciaImagen")
     @Mapping(target = "fechaFirmaDocente", ignore = true)
     @Mapping(target = "fechaFirmaResponsable", ignore = true)
     @Mapping(target = "fechaRegistro", ignore = true)

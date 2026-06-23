@@ -281,6 +281,7 @@ export function VisitaForm({ onDirtyChange }: VisitaFormProps) {
     // Responsable y Requerimientos
     responsable: "",
     requerimientos: [{ id: 1, descripcion: "" }],
+    evidenciaImagen: "",
     
     // Firmas digitales
     firmaDocente: "",
@@ -290,6 +291,23 @@ export function VisitaForm({ onDirtyChange }: VisitaFormProps) {
   const updateField = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     removeFieldError(field)
+  }
+
+  const handleEvidenceImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) {
+      updateField("evidenciaImagen", "")
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result
+      if (typeof result === "string") {
+        updateField("evidenciaImagen", result)
+      }
+    }
+    reader.readAsDataURL(file)
   }
 
   // Funciones para manejar requerimientos dinámicos
@@ -717,6 +735,7 @@ export function VisitaForm({ onDirtyChange }: VisitaFormProps) {
         evaluacionAvanceSilabico,
         evaluacionGuiaPractica,
         requerimientos: requerimientosValidos.length > 0 ? requerimientosValidos : undefined,
+        evidenciaImagen: formData.evidenciaImagen || null,
         firmaDocente: formData.firmaDocente || null,
         firmaResponsable: formData.firmaResponsable || null,
       }
@@ -1524,6 +1543,40 @@ export function VisitaForm({ onDirtyChange }: VisitaFormProps) {
                 <Plus className="h-4 w-4 mr-2" />
                 Agregar otro requerimiento
               </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="bg-primary/5 border-b">
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Evidencia Visual de la Visita
+              </CardTitle>
+              <CardDescription>
+                Adjunte una fotografía o captura como evidencia de la visita.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-4 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="evidenciaImagen">Imagen de evidencia</Label>
+                <input
+                  id="evidenciaImagen"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleEvidenceImageChange}
+                  className="block w-full text-sm text-muted-foreground file:border file:border-input file:rounded-md file:px-3 file:py-2 file:text-sm file:font-medium file:bg-card file:text-muted-foreground"
+                />
+                <p className="text-xs text-muted-foreground">Se guardará como imagen en el PDF de la visita.</p>
+              </div>
+              {formData.evidenciaImagen && (
+                <div className="rounded-lg border overflow-hidden bg-card">
+                  <div className="p-3 flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium">Vista previa de evidencia</p>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => updateField("evidenciaImagen", "")}>Quitar</Button>
+                  </div>
+                  <img src={formData.evidenciaImagen} alt="Evidencia de visita" className="w-full object-contain" />
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

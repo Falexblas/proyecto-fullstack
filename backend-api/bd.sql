@@ -101,6 +101,7 @@ CREATE TABLE VisitaInopinada (
     
     firma_docente_hash LONGTEXT NULL,
     firma_responsable_hash LONGTEXT NULL,
+    evidencia_imagen_hash LONGTEXT NULL,
     fecha_firma_docente DATETIME NULL,
     fecha_firma_responsable DATETIME NULL,
     

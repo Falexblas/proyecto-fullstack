@@ -328,6 +328,29 @@ export default function VisitaDetallePage() {
         </CardContent>
       </Card>
 
+      {visita.evidenciaImagenHash && (
+        <Card>
+          <CardHeader className="bg-primary/5 border-b">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileText className="h-5 w-5" />
+              Evidencia Fotográfica
+            </CardTitle>
+            <CardDescription>
+              Imagen cargada como evidencia de la visita.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="rounded-lg border overflow-hidden bg-card">
+              <img
+                src={visita.evidenciaImagenHash}
+                alt="Evidencia de la visita"
+                className="w-full object-contain"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Evaluaciones - Solo para Auditor y Admin */}
       {showEvaluaciones && (
         <div className="space-y-4">

@@ -81,6 +81,9 @@ public class VisitaInopinadaEntity {
     @Column(name = "firma_responsable_hash", columnDefinition = "TEXT")
     private String firmaResponsableHash;
 
+    @Column(name = "evidencia_imagen_hash", columnDefinition = "TEXT")
+    private String evidenciaImagenHash;
+
     @Column(name = "fecha_firma_docente")
     private LocalDateTime fechaFirmaDocente;
 

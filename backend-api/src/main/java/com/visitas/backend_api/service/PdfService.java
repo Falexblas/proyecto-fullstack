@@ -489,6 +489,43 @@ public class PdfService {
 
             document.add(sigTable);
 
+            // Tabla de EVIDENCIA
+            if (visita.getEvidenciaImagenHash() != null && !visita.getEvidenciaImagenHash().trim().isEmpty()) {
+                document.add(new AreaBreak(AreaBreakType.NEXT_PAGE));
+
+                Table evidenceTable = createBaseTable(new float[]{100}, font, 7);
+                evidenceTable.addCell(new Cell()
+                        .add(new Paragraph("EVIDENCIA FOTOGRÁFICA").setFont(boldFont).setFontSize(7))
+                        .setBackgroundColor(GRAY_BG).setPadding(2).setMinHeight(ROW_H));
+
+                try {
+                    String cleanB64 = visita.getEvidenciaImagenHash().trim();
+                    if (cleanB64.startsWith("\"") && cleanB64.endsWith("\"")) {
+                        cleanB64 = cleanB64.substring(1, cleanB64.length() - 1);
+                    }
+                    if (cleanB64.contains(",")) {
+                        cleanB64 = cleanB64.split(",")[1];
+                    }
+                    cleanB64 = cleanB64.replaceAll("\\s", "");
+                    byte[] imgBytes = Base64.getDecoder().decode(cleanB64);
+                    Image img = new Image(ImageDataFactory.create(imgBytes));
+                    img.setAutoScale(true);
+                    img.setMaxWidth(420);
+                    img.setMaxHeight(220);
+                    img.setHorizontalAlignment(HorizontalAlignment.CENTER);
+                    evidenceTable.addCell(new Cell()
+                            .add(img)
+                            .setPadding(4)
+                            .setBorder(Border.NO_BORDER));
+                } catch (Exception e) {
+                    evidenceTable.addCell(new Cell()
+                            .add(new Paragraph("No se pudo cargar la imagen de evidencia").setFont(font).setFontSize(7))
+                            .setPadding(2)
+                            .setMinHeight(ROW_H));
+                }
+                document.add(evidenceTable);
+            }
+
             // ═══════════════════════════════════════════════
             // 10. PIE OFICIAL (fijo abajo)
             // ═══════════════════════════════════════════════

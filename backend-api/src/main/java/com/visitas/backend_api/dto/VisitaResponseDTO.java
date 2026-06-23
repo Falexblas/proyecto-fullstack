@@ -36,6 +36,7 @@ public class VisitaResponseDTO {
     private EstadoVisita estadoVisita;
     private String firmaDocenteHash;
     private String firmaResponsableHash;
+    private String evidenciaImagenHash;
     private LocalDateTime fechaFirmaDocente;
     private LocalDateTime fechaFirmaResponsable;
     private LocalDateTime fechaRegistro;

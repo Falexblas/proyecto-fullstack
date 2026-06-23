@@ -64,6 +64,7 @@ export interface Visita {
   estadoVisita: string
   firmaDocenteHash: string | null
   firmaResponsableHash: string | null
+  evidenciaImagenHash?: string | null
   fechaFirmaDocente: string | null
   fechaFirmaResponsable: string | null
   fechaRegistro: string
@@ -97,6 +98,7 @@ export interface VisitaCreateData {
   evaluacionAvanceSilabico?: EvaluacionAvanceSilabico
   evaluacionGuiaPractica?: EvaluacionGuiaPractica
   requerimientos?: RequerimientoCreateData[]
+  evidenciaImagen?: string | null
 }
 
 export interface VisitaFilterData {
