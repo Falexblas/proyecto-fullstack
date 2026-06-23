@@ -435,6 +435,48 @@ public class VisitaService {
                 .collect(Collectors.toList());
     }
 
+    public List<VisitaInopinadaEntity> filtrarVisitasEntitiesPorRol(VisitaFilterDTO filter) {
+        EstadoVisita estadoEnum = null;
+        if (filter.getEstado() != null && !filter.getEstado().isBlank()) {
+            try {
+                estadoEnum = EstadoVisita.valueOf(filter.getEstado().toUpperCase());
+            } catch (IllegalArgumentException ex) {
+                estadoEnum = null;
+            }
+        }
+
+        Rol currentRole = authService.getCurrentUserRole();
+        switch (currentRole) {
+            case ADMIN:
+                return visitaRepository.filtrarVisitas(
+                        filter.getBusqueda(),
+                        filter.getIdSede(),
+                        estadoEnum,
+                        filter.getFechaDesde(),
+                        filter.getFechaHasta());
+            case AUDITOR:
+                Integer currentUserId = authService.getCurrentUserId();
+                return visitaRepository.filtrarVisitasPorAuditor(
+                        currentUserId,
+                        filter.getBusqueda(),
+                        filter.getIdSede(),
+                        estadoEnum,
+                        filter.getFechaDesde(),
+                        filter.getFechaHasta());
+            case DOCENTE:
+                Integer currentDocenteId = authService.getCurrentDocenteId();
+                return visitaRepository.filtrarVisitasPorDocente(
+                        currentDocenteId,
+                        filter.getBusqueda(),
+                        filter.getIdSede(),
+                        estadoEnum,
+                        filter.getFechaDesde(),
+                        filter.getFechaHasta());
+            default:
+                throw new UnauthorizedAccessException("Rol no autorizado para exportar PDFs");
+        }
+    }
+
     public DashboardAuditorStatsDTO obtenerEstadisticasDashboardAuditor() {
         Integer currentUserId = authService.getCurrentUserId();
         

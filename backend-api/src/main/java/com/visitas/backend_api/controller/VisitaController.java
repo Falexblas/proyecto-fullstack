@@ -155,6 +155,20 @@ public class VisitaController {
                 .body(pdfBytes);
     }
 
+    @PostMapping("/exportar/pdf")
+    @PreAuthorize("hasAnyRole('AUDITOR', 'DOCENTE', 'ADMIN')")
+    public ResponseEntity<byte[]> exportarVisitasPdf(@RequestBody VisitaFilterDTO filter) throws Exception {
+        byte[] pdfBytes = pdfService.generarPdfVisitas(visitaService.filtrarVisitasEntitiesPorRol(filter));
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("attachment", "visitas_filtradas.pdf");
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
+    }
+
     @PostMapping("/programar")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<VisitaResponseDTO> programarVisitaParaAuditor(@Valid @RequestBody VisitaProgramarDTO dto) {

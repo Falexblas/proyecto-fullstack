@@ -10,8 +10,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Search, Filter, Download, X } from "lucide-react"
+import { Search, Download, X } from "lucide-react"
 import { sedesService, type Sede } from "@/services/sedes.service"
+import { visitasService } from "@/services/visitas.service"
 import { toast } from "sonner"
 
 export interface VisitasFiltersProps {
@@ -34,6 +35,7 @@ export function VisitasFilters({ onFiltersChange }: VisitasFiltersProps) {
     estado: "",
     fecha: "",
   })
+  const [isExporting, setIsExporting] = useState(false)
 
   // Cargar sedes
   useEffect(() => {
@@ -71,6 +73,34 @@ export function VisitasFilters({ onFiltersChange }: VisitasFiltersProps) {
     onFiltersChange?.(emptyFilters)
   }
 
+  const handleExportPdf = async () => {
+    setIsExporting(true)
+    try {
+      const payload = {
+        busqueda: filters.busqueda || null,
+        idSede: filters.idSede ? Number(filters.idSede) : null,
+        estado: filters.estado || null,
+        fechaDesde: filters.fecha || null,
+        fechaHasta: filters.fecha || null,
+      }
+      const blob = await visitasService.exportarPdf(payload)
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = `visitas_filtradas.pdf`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+      toast.success("PDF exportado con los filtros actuales")
+    } catch (error) {
+      console.error("Error al exportar PDF:", error)
+      toast.error("No se pudo exportar el PDF")
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   const hasActiveFilters = Object.values(filters).some(v => v !== "")
 
   return (
@@ -99,7 +129,13 @@ export function VisitasFilters({ onFiltersChange }: VisitasFiltersProps) {
               <X className="h-4 w-4" />
             </Button>
           )}
-          <Button variant="outline" size="icon">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleExportPdf}
+            disabled={isExporting}
+            title="Exportar PDF con filtros"
+          >
             <Download className="h-4 w-4" />
           </Button>
         </div>

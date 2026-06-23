@@ -8,10 +8,16 @@ import com.itextpdf.kernel.font.PdfFont;
 import com.itextpdf.kernel.font.PdfFontFactory;
 import com.itextpdf.kernel.geom.PageSize;
 import com.itextpdf.kernel.pdf.PdfDocument;
+import com.itextpdf.kernel.pdf.PdfReader;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.layout.Document;
 import com.itextpdf.layout.borders.Border;
-import com.itextpdf.layout.element.*;
+import com.itextpdf.layout.element.AreaBreak;
+import com.itextpdf.layout.element.Cell;
+import com.itextpdf.layout.element.Paragraph;
+import com.itextpdf.layout.element.Table;
+import com.itextpdf.layout.element.Image;
+import com.itextpdf.layout.properties.AreaBreakType;
 import com.itextpdf.layout.properties.HorizontalAlignment;
 import com.itextpdf.layout.properties.TextAlignment;
 import com.itextpdf.layout.properties.UnitValue;
@@ -22,9 +28,11 @@ import com.visitas.backend_api.repository.VisitaInopinadaEntityRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -490,6 +498,26 @@ public class PdfService {
 
         } catch (Exception e) {
             throw new RuntimeException("Error generando PDF VRA-FR-040: " + e.getMessage(), e);
+        }
+
+        return baos.toByteArray();
+    }
+
+    public byte[] generarPdfVisitas(List<VisitaInopinadaEntity> visitas) throws Exception {
+        if (visitas == null || visitas.isEmpty()) {
+            throw new IllegalArgumentException("No hay visitas para generar el PDF");
+        }
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (PdfWriter writer = new PdfWriter(baos);
+             PdfDocument mergedPdf = new PdfDocument(writer)) {
+
+            for (VisitaInopinadaEntity visita : visitas) {
+                byte[] visitaPdf = generarPdfVisita(visita.getId());
+                try (PdfDocument sourcePdf = new PdfDocument(new PdfReader(new ByteArrayInputStream(visitaPdf)))) {
+                    sourcePdf.copyPagesTo(1, sourcePdf.getNumberOfPages(), mergedPdf);
+                }
+            }
         }
 
         return baos.toByteArray();

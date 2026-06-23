@@ -187,6 +187,19 @@ export const visitasService = {
     return response.data
   },
 
+  exportarPdf: async (filters: {
+    busqueda?: string | null
+    idSede?: number | null
+    estado?: string | null
+    fechaDesde?: string | null
+    fechaHasta?: string | null
+  }): Promise<Blob> => {
+    const response = await api.post(`/visitas/exportar/pdf`, filters, {
+      responseType: "blob",
+    })
+    return response.data
+  },
+
   programar: async (data: VisitaProgramarData): Promise<Visita> => {
     const response = await api.post<Visita>("/visitas/programar", data)
     return response.data
